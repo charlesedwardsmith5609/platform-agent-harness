@@ -15,11 +15,16 @@ Adoption on a real infra repo has not started yet.
 
 ## Active initiatives
 
-1. **Dogfood trial (this repo)** — labels, milestones, first real issues filed only
-   via wrappers; capture friction in this file.
-2. **P1 harness quality** — #2 done (package split). #5 in progress: argparse CLI,
-   batched list/label cache, release abandon|blocked.
-3. **Adoption kit** — trial install guide, example STATUS, install file checklist.
+1. **Dogfood trial (this repo)** — labels/milestones live; issues #2 and #5 closed via
+   wrappers. Ready for a second-repo trial when an infra target is chosen.
+2. **P1 harness quality** — done (#2 package split, #5 argparse/batch list/release modes).
+3. **Adoption kit** — trial-install guide + Windows `.ps1` launchers in place.
+
+## Backlog (Phase 3+)
+
+- Broader mocked-gh coverage for create/classify hierarchy
+- Optional Project board sync when `project_board` is configured
+- Multi-worker claim concurrency drill on a staging repo
 
 ## Trial notes / friction
 
