@@ -20,7 +20,7 @@ Run one bare executable per tool call. Do not chain with `&&`, pipes, or `cd`.
 
 | Wrapper | Operations | Contract |
 |---|---|---|
-| `setup/repo_issue.py` | `create`, `list`, `view`, `classify`, `link-child`, `unlink-child`, `claim`, `release`, `in-review` | Taxonomy-bound GitHub issue lifecycle. `claim` is comment-first and fail-closed on races. Do not substitute raw `gh issue` for these operations. |
+| `setup/repo_issue.py` | `create`, `list`, `view`, `classify`, `link-child`, `unlink-child`, `claim`, `release`, `in-review` | Taxonomy-bound GitHub issue lifecycle (`setup/platform_harness/`). `claim` is comment-first and fail-closed on races. Do not substitute raw `gh issue` for these operations. |
 
 ### Command shapes
 

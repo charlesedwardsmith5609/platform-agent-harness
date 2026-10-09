@@ -17,8 +17,8 @@ Adoption on a real infra repo has not started yet.
 
 1. **Dogfood trial (this repo)** — labels, milestones, first real issues filed only
    via wrappers; capture friction in this file.
-2. **P1 harness quality** — split `repo_issue.py`, argparse CLI, batch list/label
-   cache, `pyproject.toml` packaging.
+2. **P1 harness quality** — #2 in progress: split into `setup/platform_harness/` +
+   `pyproject.toml`. Remaining: argparse CLI, batch list/label cache.
 3. **Adoption kit** — trial install guide, example STATUS, install file checklist.
 
 ## Trial notes / friction

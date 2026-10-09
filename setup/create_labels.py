@@ -7,7 +7,7 @@ import argparse
 import json
 import sys
 
-from repo_issue import IssueError, load_taxonomy, parse_json, run_gh
+from platform_harness import IssueError, load_taxonomy, parse_json, run_gh
 
 TAXONOMY_GROUPS = (
     "issue_types",

@@ -1,0 +1,372 @@
+"""Taxonomy-bound issue operations (create/classify/claim/…)."""
+
+from __future__ import annotations
+
+import re
+import uuid
+from datetime import datetime, timezone
+
+from .errors import IssueError
+from .github_remote import (
+    classification_satisfied,
+    ensure_classification_labels,
+    ensure_label,
+    label_name_set,
+    view_issue_number,
+)
+from .runtime import REPOSITORY_ROOT, run_gh
+from .taxonomy import (
+    argument_value,
+    assert_flag_arguments,
+    classification_from_arguments,
+    configured_item,
+    ignored_issue_file,
+    parse_json,
+    positive_issue_number,
+    validate_title,
+)
+
+CLAIM_MARKER_RE = re.compile(
+    r"<!--\s*harness:claim\s+v1\s+id=(?P<id>[0-9a-fA-F-]{36})\s*-->"
+)
+RELEASE_MARKER_RE = re.compile(
+    r"<!--\s*harness:release\s+v1\s+id=(?P<id>\*|[0-9a-fA-F-]{36})\s*-->"
+)
+
+
+def create_issue(taxonomy: dict, args: list[str]) -> dict:
+    classification = classification_from_arguments(taxonomy, args)
+    title = validate_title(argument_value(args, "--title"))
+    body = ignored_issue_file(
+        REPOSITORY_ROOT, argument_value(args, "--body-file"), "issue body file"
+    )
+    ensure_classification_labels(classification)
+    create_args = ["issue", "create", "--title", title, "--body-file", str(body)]
+    for label in classification["labels"]:
+        create_args.extend(["--label", label["name"]])
+    if classification["milestone"]:
+        create_args.extend(["--milestone", classification["milestone"]])
+    output = run_gh(create_args).strip()
+    match = re.search(r"/issues/([1-9]\d*)/?$", output)
+    if not match:
+        raise IssueError(f"unable to identify created issue from GitHub output: {output}")
+    number = int(match.group(1))
+    created = view_issue_number(number)
+    if str(created.get("state") or "").upper() != "OPEN":
+        raise IssueError(
+            f"created issue {number} failed taxonomy postcondition verification; inspect {created.get('url')}"
+        )
+    if created.get("title") != title or not classification_satisfied(created, classification):
+        raise IssueError(
+            f"created issue {number} failed taxonomy postcondition verification; inspect {created.get('url')}"
+        )
+    return {
+        "number": number,
+        "url": created.get("url"),
+        "title": title,
+        "labels": [label["name"] for label in classification["labels"]],
+        "milestone": classification["milestone"],
+    }
+
+
+def classify_issue(taxonomy: dict, args: list[str]) -> dict:
+    classification = classification_from_arguments(taxonomy, args, rationale=True)
+    number = positive_issue_number(argument_value(args, "--issue"))
+    rationale = ignored_issue_file(
+        REPOSITORY_ROOT,
+        argument_value(args, "--rationale-file"),
+        "classification rationale file",
+    )
+    before = view_issue_number(number)
+    classification_names = {
+        item["name"].lower()
+        for group in (
+            taxonomy["issue_types"],
+            taxonomy["priorities"],
+            taxonomy["concerns"],
+            taxonomy["lanes"],
+        )
+        for item in group
+    }
+    desired = {label["name"].lower() for label in classification["labels"]}
+    remove_labels = [
+        label["name"]
+        for label in before.get("labels") or []
+        if label["name"].lower() in classification_names and label["name"].lower() not in desired
+    ]
+    ensure_classification_labels(classification)
+    edit = ["issue", "edit", str(number)]
+    for name in remove_labels:
+        edit.extend(["--remove-label", name])
+    for label in classification["labels"]:
+        edit.extend(["--add-label", label["name"]])
+    if classification["milestone"]:
+        edit.extend(["--milestone", classification["milestone"]])
+    else:
+        edit.append("--remove-milestone")
+    run_gh(edit)
+    classified = view_issue_number(number)
+    unrelated_before = [
+        label["name"]
+        for label in before.get("labels") or []
+        if label["name"].lower() not in classification_names
+    ]
+    classified_names = label_name_set(classified)
+    if not classification_satisfied(classified, classification) or any(
+        name.lower() not in classified_names for name in unrelated_before
+    ):
+        raise IssueError(
+            f"issue {number} failed taxonomy classification postcondition verification; "
+            f"inspect {classified.get('url')}"
+        )
+    run_gh(["issue", "comment", str(number), "--body", rationale.read_text(encoding="utf-8")])
+    return {
+        "number": number,
+        "url": classified.get("url"),
+        "labels": [label["name"] for label in classification["labels"]],
+        "milestone": classification["milestone"],
+    }
+
+
+def list_issues(args: list[str]) -> list[dict]:
+    assert_flag_arguments(
+        args, required=[], optional=["--state"], usage="usage: list [--state open|closed|all]"
+    )
+    state = argument_value(args, "--state") or "open"
+    if state not in {"open", "closed", "all"}:
+        raise IssueError("issue state must be open, closed, or all")
+    issues = parse_json(
+        run_gh(["issue", "list", "--state", state, "--limit", "1000", "--json", "number"]),
+        "issue list",
+    )
+    return [view_issue_number(item["number"]) for item in issues]
+
+
+def view_issue(args: list[str]) -> dict:
+    assert_flag_arguments(args, required=["--issue"], usage="usage: view --issue <number>")
+    return view_issue_number(positive_issue_number(argument_value(args, "--issue")))
+
+
+def change_child_relation(args: list[str], *, unlink: bool) -> dict:
+    usage = f"usage: {'unlink-child' if unlink else 'link-child'} --parent <number> --child <number>"
+    assert_flag_arguments(args, required=["--parent", "--child"], usage=usage)
+    parent = positive_issue_number(argument_value(args, "--parent"), "parent")
+    child = positive_issue_number(argument_value(args, "--child"), "child")
+    if parent == child:
+        raise IssueError("an issue cannot be its own parent")
+    view_issue_number(parent)
+    view_issue_number(child)
+    if unlink:
+        run_gh(["issue", "edit", str(child), "--remove-parent"])
+    else:
+        run_gh(["issue", "edit", str(parent), "--add-sub-issue", str(child)])
+    verified = view_issue_number(parent)
+    present = any((issue or {}).get("number") == child for issue in verified.get("children") or [])
+    if present == unlink:
+        raise IssueError(
+            f"issue {parent} failed {'unlink' if unlink else 'link'}-child postcondition verification"
+        )
+    return {"parent": parent, "child": child, "linked": not unlink}
+
+
+def format_claim_body(
+    *,
+    claim_id: str,
+    lane: str,
+    worker: str,
+    branch: str,
+    stamp: str,
+) -> str:
+    return (
+        f"<!-- harness:claim v1 id={claim_id} -->\n"
+        f"CLAIM · lane={lane} · worker={worker} · branch={branch} · at={stamp} · id={claim_id}"
+    )
+
+
+def format_release_body(*, claim_id: str, reason: str) -> str:
+    return (
+        f"<!-- harness:release v1 id={claim_id} -->\n"
+        f"RELEASE · id={claim_id} · reason={reason}"
+    )
+
+
+def active_claims(issue: dict) -> list[dict]:
+    """Return active structured claims ordered by createdAt, then comment order."""
+    active: dict[str, dict] = {}
+    order = 0
+    for comment in issue.get("comments") or []:
+        body = comment.get("body") or ""
+        created = comment.get("createdAt") or ""
+        release = RELEASE_MARKER_RE.search(body)
+        if release:
+            released_id = release.group("id")
+            if released_id == "*":
+                active.clear()
+            else:
+                active.pop(released_id, None)
+            continue
+        claim = CLAIM_MARKER_RE.search(body)
+        if not claim:
+            continue
+        claim_id = claim.group("id")
+        active[claim_id] = {
+            "id": claim_id,
+            "createdAt": created,
+            "order": order,
+            "body": body,
+        }
+        order += 1
+    return sorted(
+        active.values(),
+        key=lambda item: (item["createdAt"], item["order"]),
+    )
+
+
+def active_claim(issue: dict) -> bool:
+    return bool(active_claims(issue))
+
+
+def claim_winner(issue: dict) -> dict | None:
+    claims = active_claims(issue)
+    return claims[0] if claims else None
+
+
+def assert_grabbable(issue: dict, lane: str) -> None:
+    if str(issue.get("state") or "").upper() not in {"OPEN"}:
+        raise IssueError("issue must be open")
+    labels = label_name_set(issue)
+    if lane.lower() not in labels:
+        raise IssueError(f"issue is not in lane {lane}")
+    for blocked in ("status:wip", "status:in-review", "blocked"):
+        if blocked in labels:
+            raise IssueError(f"issue is not grabbable: {blocked}")
+    if active_claim(issue):
+        raise IssueError("issue already has a structured CLAIM")
+
+
+def _relinquish_lost_claim(number: int, claim_id: str) -> None:
+    run_gh(
+        [
+            "issue",
+            "comment",
+            str(number),
+            "--body",
+            format_release_body(
+                claim_id=claim_id,
+                reason="lost claim race; fail closed",
+            ),
+        ]
+    )
+    try:
+        run_gh(["issue", "edit", str(number), "--remove-label", "status:wip"])
+    except IssueError:
+        pass
+
+
+def claim_issue(taxonomy: dict, args: list[str]) -> dict:
+    """Claim an issue with comment-first, fail-closed race detection."""
+    assert_flag_arguments(
+        args,
+        required=["--issue", "--lane", "--worker", "--branch"],
+        usage="usage: claim --issue <number> --lane <lane> --worker <handle> --branch <branch>",
+    )
+    number = positive_issue_number(argument_value(args, "--issue"))
+    lane = configured_item(taxonomy["lanes"], argument_value(args, "--lane"), "issue lane")["name"]
+    worker = argument_value(args, "--worker")
+    branch = argument_value(args, "--branch")
+    if not worker or not branch:
+        raise IssueError("claim requires --worker and --branch")
+    issue = view_issue_number(number)
+    assert_grabbable(issue, lane)
+    ensure_label(configured_item(taxonomy["claim_statuses"], "status:wip", "claim status"))
+
+    claim_id = str(uuid.uuid4())
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    body = format_claim_body(
+        claim_id=claim_id,
+        lane=lane,
+        worker=worker,
+        branch=branch,
+        stamp=stamp,
+    )
+    run_gh(["issue", "comment", str(number), "--body", body])
+    after_comment = view_issue_number(number)
+    winner = claim_winner(after_comment)
+    if winner is None or winner["id"] != claim_id:
+        _relinquish_lost_claim(number, claim_id)
+        raise IssueError(
+            f"issue {number} claim race lost; another structured CLAIM is active"
+        )
+
+    run_gh(["issue", "edit", str(number), "--add-label", "status:wip"])
+    claimed = view_issue_number(number)
+    winner = claim_winner(claimed)
+    if (
+        "status:wip" not in label_name_set(claimed)
+        or winner is None
+        or winner["id"] != claim_id
+        or len(active_claims(claimed)) != 1
+    ):
+        _relinquish_lost_claim(number, claim_id)
+        raise IssueError(f"issue {number} failed claim postcondition verification")
+    return {
+        "number": number,
+        "url": claimed.get("url"),
+        "claim": body,
+        "claim_id": claim_id,
+    }
+
+
+def release_issue(taxonomy: dict, args: list[str]) -> dict:
+    assert_flag_arguments(
+        args,
+        required=["--issue", "--reason-file"],
+        usage="usage: release --issue <number> --reason-file <ignored-file>",
+    )
+    number = positive_issue_number(argument_value(args, "--issue"))
+    reason = ignored_issue_file(
+        REPOSITORY_ROOT, argument_value(args, "--reason-file"), "release reason file"
+    )
+    ensure_label(configured_item(taxonomy["concerns"], "blocked", "issue concern"))
+    reason_text = reason.read_text(encoding="utf-8").strip()
+    body = format_release_body(claim_id="*", reason=reason_text)
+    run_gh(["issue", "comment", str(number), "--body", body])
+    run_gh(
+        [
+            "issue",
+            "edit",
+            str(number),
+            "--remove-label",
+            "status:wip",
+            "--add-label",
+            "blocked",
+        ]
+    )
+    released = view_issue_number(number)
+    if active_claim(released) or "status:wip" in label_name_set(released):
+        raise IssueError(f"issue {number} failed release postcondition verification")
+    return {"number": number, "released": True, "url": released.get("url")}
+
+
+def mark_in_review(taxonomy: dict, args: list[str]) -> dict:
+    assert_flag_arguments(
+        args, required=["--issue"], usage="usage: in-review --issue <number>"
+    )
+    number = positive_issue_number(argument_value(args, "--issue"))
+    ensure_label(configured_item(taxonomy["claim_statuses"], "status:in-review", "claim status"))
+    run_gh(
+        [
+            "issue",
+            "edit",
+            str(number),
+            "--remove-label",
+            "status:wip",
+            "--add-label",
+            "status:in-review",
+        ]
+    )
+    reviewed = view_issue_number(number)
+    labels = label_name_set(reviewed)
+    if "status:in-review" not in labels or "status:wip" in labels:
+        raise IssueError(f"issue {number} failed in-review postcondition verification")
+    return {"number": number, "url": reviewed.get("url")}
