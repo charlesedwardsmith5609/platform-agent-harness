@@ -19,13 +19,14 @@ Adoption on a real infra repo has not started yet.
    [`acme-platform-infra-sandbox`](https://github.com/charlesedwardsmith5609/acme-platform-infra-sandbox)
    completed worker loop on issue #1. Harness issues #2/#5 closed.
 2. **P1 harness quality** — done.
-3. **Phase 3 reliability** — #9 in progress (mutation mocks, project sync stub, claim drill).
-4. **Adoption kit** — trial-install guide + Windows `.ps1` launchers in place.
+3. **Phase 3 reliability** — done (#9).
+4. **Phase 4 scale** — #12 multi-repo rollout guide + `sync_harness_to_repo.py`.
+5. **Adoption kit** — trial-install guide + Windows `.ps1` launchers in place.
 
-## Backlog (Phase 4+)
+## Backlog (later / optional)
 
-- Multi-region / multi-repo rollout playbooks
-- Optional weekly status rollup (out of scope unless requested)
+- Optional weekly status rollup
+- Org-wide taxonomy federation across many fleets
 
 ## Trial notes / friction
 
