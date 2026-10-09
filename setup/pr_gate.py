@@ -20,7 +20,8 @@ import re
 import sys
 from pathlib import Path
 
-CLOSES_RE = re.compile(r"(?i)\bcloses\s+#([1-9]\d*)\b")
+CLOSES_RE = re.compile(r"(?i)\b(?:closes|fixes|resolves)\s+#([1-9]\d*)\b")
+TRACKING_NONE_RE = re.compile(r"(?im)^tracking:\s*none\b")
 BLAST_RE = re.compile(r"(?im)^##\s*blast radius\b")
 
 # Paths that require coordinator/foundation signal in this harness and fleet copies.
@@ -50,8 +51,11 @@ def collect_findings(
     changed_files: list[str],
 ) -> list[str]:
     findings: list[str] = []
-    if not CLOSES_RE.search(body or ""):
-        findings.append("PR body must include `Closes #<issue>` for auto-close linkage")
+    if not (CLOSES_RE.search(body or "") or TRACKING_NONE_RE.search(body or "")):
+        findings.append(
+            "PR body must include `Closes #<issue>` (or Fixes/Resolves) "
+            "or an explicit `Tracking: none` line for meta/harness work"
+        )
     if not BLAST_RE.search(body or ""):
         findings.append("PR body must include a `## Blast radius` section")
     foundation_hits = [

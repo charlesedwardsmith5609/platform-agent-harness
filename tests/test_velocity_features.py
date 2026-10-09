@@ -207,6 +207,15 @@ class PrGateTests(unittest.TestCase):
         )
         self.assertEqual(len(findings), 2)
 
+    def test_tracking_none_allowed(self):
+        findings = collect_findings(
+            body="Tracking: none\n\nlane:foundation\n\n## Blast radius\nlow\n",
+            title="meta harness",
+            branch="cursor/fix-docs",
+            changed_files=["setup/platform_harness/cli.py"],
+        )
+        self.assertEqual(findings, [])
+
     def test_foundation_requires_signal(self):
         findings = collect_findings(
             body="Closes #1\n\n## Blast radius\nlow\n",
