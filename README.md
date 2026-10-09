@@ -51,17 +51,23 @@ CLAUDE.md                          # Main agent instructions (read this first)
       observability.md             # OTel, SLO/SLI, alerting patterns
       security-hardening.md        # OIDC, IAM, RBAC, secrets, network policies
 setup/
-  create-labels.sh                 # Creates all GitHub labels (run once)
-  setup-guide.md                   # Step-by-step adoption guide
-playbooks/
-  feature-decomposition.md         # How to break down a platform initiative
-  incident-response.md             # Post-incident workflow including runbook generation
+  wrapper-catalog.md               # Approved command surfaces (read before raw gh/git)
+  project-taxonomy.json            # Authoritative labels, lanes, milestones
+  repo_issue.py                    # Taxonomy-bound issue lifecycle
+  create_labels.py                 # Create/reconcile taxonomy labels
+  agent-permissions.json           # Portable permission source (placeholder root)
+  apply_permissions.py             # Materialize permissions into gitignored local files
+  create-labels.sh                 # Bash launcher for create_labels.py
 docs/
   STATUS.md                        # Current state, active work, milestone progress
+  guides/
+    permissions-and-security.md    # Allowlist and wrapper rules
   test-scenarios/
     pending.md                     # Validation scenarios awaiting human/integration testing
     archive/                       # Confirmed scenarios (moved here after validation)
   review-ledger.md                 # Record of competing-model review passes
+tests/
+  test_repo_issue.py               # Taxonomy and permission-source unit tests
 ```
 
 ---
@@ -89,11 +95,22 @@ Fill in the `PROJECT-SPECIFIC` sections:
 
 ```bash
 cd /path/to/your-infra-repo
-bash setup/create-labels.sh
+python setup/create_labels.py --plan
+python setup/create_labels.py
 
-# Create delivery phase milestones
+# Create delivery phase milestones named in setup/project-taxonomy.json
 gh milestone create "Phase 1: Foundational" --description "Core infrastructure that everything depends on"
 gh milestone create "Phase 2: Developer Experience" --description "Self-service, onboarding, tooling"
+```
+
+Issue create/classify/claim after that uses `python setup/repo_issue.py`. See
+[`setup/wrapper-catalog.md`](setup/wrapper-catalog.md).
+
+Apply portable permissions only when the human asks:
+
+```bash
+python setup/apply_permissions.py --dry-run
+python setup/apply_permissions.py
 ```
 
 **4. Create docs/STATUS.md**
@@ -168,4 +185,5 @@ This harness is a port of a Copilot-native agentic development coordination syst
 
 The core insights from the original are preserved: GitHub as the coordination layer, visible
 claims with timestamped provenance, shared foundation protection, role separation between
-coordinator and workers, and skills-as-composable-markdown that agents load on demand.
+coordinator and workers, skills-as-composable-markdown that agents load on demand, taxonomy-bound
+issue wrappers, and portable permission sources that never commit machine-specific absolute paths.

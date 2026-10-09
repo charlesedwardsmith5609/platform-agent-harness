@@ -148,7 +148,7 @@ Load the relevant skills before doing work in that area. Skills are in `.github/
 | Kubernetes/compute work | `coding/kubernetes.md` |
 | Observability/SLO work | `coding/observability.md` |
 | Terraform/IaC work | `coding/terraform.md` |
-| Filing or triaging issues | `workflow/issue-triage.md` |
+| Filing or triaging issues | `workflow/issue-triage.md` + `setup/wrapper-catalog.md` |
 | Multi-agent parallel work | `workflow/multi-agent-coordination.md` |
 | PR review | `workflow/code-review-agent.md` |
 | User-acceptance scenarios | `workflow/human-test-scenarios.md` |
@@ -157,29 +157,39 @@ Load the relevant skills before doing work in that area. Skills are in `.github/
 
 ## Agent workflows
 
+Consult `setup/wrapper-catalog.md` before using GitHub issue commands. Issue create, list, view,
+classify, hierarchy, claim, release, and in-review go through `python setup/repo_issue.py`.
+
 ### Filing a new issue
 
 Apply the full taxonomy at creation — type + priority + lane + concerns. Leave milestone empty
 (empty milestone = untriaged signal). The coordinator's triage sweep adds the milestone and rationale.
 
+Write the body to a Git-ignored file first (`*.issue-body.local.md`), then:
+
 ```bash
-gh issue create \
+python setup/repo_issue.py create \
   --title "concise description of the problem" \
-  --body "What/where + why it matters + how to reproduce or verify" \
-  --label "hardening" --label "P2" --label "lane:observability"
-# Add --label "security" or --label "blocked" when applicable
-# Do NOT set --milestone (intentionally left empty until triage)
+  --body-file scratch.issue-body.local.md \
+  --type hardening \
+  --priority P2 \
+  --lane lane:observability
+# Repeat --concern security or --concern blocked when applicable
+# Do NOT pass --milestone (intentionally left empty until triage)
 ```
 
-### Claiming an issue (the lock — three parts, all required)
+### Claiming an issue (the lock — applied as one wrapper)
 
 ```bash
-gh issue edit <n> --add-label "status:wip"
-gh issue comment <n> --body "🤖 CLAIM · lane:observability · worker=<handle> · branch=issue/<n>-<slug> · $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+python setup/repo_issue.py claim \
+  --issue <n> \
+  --lane lane:observability \
+  --worker <handle> \
+  --branch issue/<n>-<slug>
 ```
 
-An issue is grabbable iff: open, correct `lane:*`, not `status:wip`/`status:in-review`/`blocked`,
-no open CLAIM comment.
+The wrapper adds `status:wip` and posts the timestamped CLAIM comment. An issue is grabbable iff:
+open, correct `lane:*`, not `status:wip`/`status:in-review`/`blocked`, no open CLAIM comment.
 
 ### Worker loop
 
@@ -190,7 +200,7 @@ no open CLAIM comment.
 5. Implement, following platform engineering principles and security hardening guidelines
 6. Validate locally — run each validation command as its own call, never chain with `&&`
 7. Open PR: `gh pr create --base main --title "<summary> (#<n>)" --body "Closes #<n>\n\n<what/why + validation results>"`
-8. Move to `status:in-review`, drop `status:wip`
+8. `python setup/repo_issue.py in-review --issue <n>`
 9. Append human acceptance scenarios to `docs/test-scenarios/pending.md` if the change needs human verification
 10. Hand off to coordinator. **Never self-merge.**
 11. Re-triage your lane before declaring it empty — issues are filed while you work.

@@ -20,15 +20,19 @@ type + priority + lane + concerns + milestone + rationale comment.
 Apply this to *any* issue you open — from user feedback, a follow-up spotted mid-task, or a
 postmortem action item.
 
+Read `setup/project-taxonomy.json` before classifying. It is the authoritative type, priority,
+concern, claim-status, lane, and milestone list. Consult `setup/wrapper-catalog.md` for command
+shapes. Do not invent labels or substitute raw `gh issue` for these operations.
+
 ```bash
-gh issue create \
+python setup/repo_issue.py create \
   --title "concise, specific description" \
-  --body "What/where + why it matters in production + how to reproduce or verify a fix" \
-  --label "hardening" \
-  --label "P2" \
-  --label "lane:observability"
-# Add --label "security" or --label "blocked" when applicable
-# DO NOT set --milestone (empty = untriaged, deliberate)
+  --body-file scratch.issue-body.local.md \
+  --type hardening \
+  --priority P2 \
+  --lane lane:observability
+# Repeat --concern when applicable
+# DO NOT pass --milestone (empty = untriaged, deliberate)
 ```
 
 Lane is set **at creation**, not deferred. An issue without a lane cannot be routed to a worker.
@@ -40,11 +44,10 @@ Lane is set **at creation**, not deferred. An issue without a lane cannot be rou
 ### 1. Find untriaged issues
 
 ```bash
-gh issue list --state open --limit 100 --json number,title,milestone \
-  | python3 -c "import json,sys; issues=json.load(sys.stdin); [print(i['number'], i['title']) for i in issues if not i['milestone']]"
+python setup/repo_issue.py list --state open
 ```
 
-Read each fully: `gh issue view <n>`
+Read each fully: `python setup/repo_issue.py view --issue <n>`
 
 ### 2. Classify
 
@@ -107,32 +110,33 @@ dominant one and cross-reference the others.
 - `lane:platform-api` — internal developer APIs, service onboarding automation, self-service tooling
 - `lane:cost` — cost attribution labels, FinOps dashboards, budget alerts, chargeback
 
-### 3. Apply labels and milestone
+### 3. Apply labels, milestone, and rationale
+
+Put the rationale in a Git-ignored `*.rationale.local.md` file, then:
 
 ```bash
-gh issue edit <n> --add-label "hardening" --add-label "P2" --add-label "lane:observability" --milestone "Phase 2: Developer Experience"
-# Add security/blocked when applicable:
-gh issue edit <n> --add-label "security"
-gh issue edit <n> --add-label "blocked"
+python setup/repo_issue.py classify \
+  --issue <n> \
+  --type hardening \
+  --priority P2 \
+  --lane lane:observability \
+  --milestone "Phase 2: Developer Experience" \
+  --rationale-file scratch.rationale.local.md
 ```
 
-### 4. Comment rationale
+Repeat `--concern` when applicable. Classification replaces only taxonomy-owned type, priority,
+concern, and lane labels; `status:wip` / `status:in-review` remain intact.
+
+For parent/child hierarchy (independent of issue type):
 
 ```bash
-gh issue comment <n> --body "Triage: hardening · P2 · lane:observability · Phase 2
-
-This is a hardening issue rather than a bug because [reason]. Assigned to observability because
-[the bulk of the work is in the OTel pipeline / alert configuration / etc.].
-
-[Any cross-references to related issues or blocking dependencies.]"
+python setup/repo_issue.py link-child --parent <n> --child <m>
 ```
 
-### 5. Verify and summarize
+### 4. Verify and summarize
 
 ```bash
-# Should return 0 when triage is complete
-gh issue list --state open --limit 100 --json number,milestone \
-  | python3 -c "import json,sys; issues=json.load(sys.stdin); print(sum(1 for i in issues if not i['milestone']), 'untriaged')"
+python setup/repo_issue.py list --state open
 ```
 
 Report one line per issue: `#N — type [concern] · Pk · lane:X · phase`
@@ -142,8 +146,9 @@ Report one line per issue: `#N — type [concern] · Pk · lane:X · phase`
 ## Platform triage rules
 
 - Only triage **untriaged** (no-milestone) issues by default
-- Never invent labels or milestones — use `gh label list` and `gh api repos/{owner}/{repo}/milestones`
+- Never invent labels or milestones — use `setup/project-taxonomy.json` only
 - `lane:foundation` issues go to the coordinator, not workers — note this in the triage comment
 - `incident-follow-up` issues should reference the incident postmortem in the body
 - Overlapping issues → cross-reference, don't merge/close without human confirmation
 - If the human files an issue with a type/priority already filled in, honor it unless there's a concrete reason to change it; explain any change in the triage comment
+- Create configured labels with `python setup/create_labels.py --plan` then `python setup/create_labels.py`. Use `--reconcile` to restore taxonomy-owned color and description.

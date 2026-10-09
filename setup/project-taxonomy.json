@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "require_milestone_on_create": false,
+  "require_milestone_on_classify": true,
+  "issue_types": [
+    {
+      "name": "bug",
+      "color": "D73A4A",
+      "description": "Something is broken in production — P0/P1 only"
+    },
+    {
+      "name": "feature",
+      "color": "A2EEEF",
+      "description": "New platform capability"
+    },
+    {
+      "name": "enhancement",
+      "color": "84B6EB",
+      "description": "Improving an existing, working capability"
+    },
+    {
+      "name": "hardening",
+      "color": "E4E669",
+      "description": "Defensive improvement, tech debt, missing validation, weak patterns"
+    }
+  ],
+  "priorities": [
+    {
+      "name": "P0",
+      "color": "B60205",
+      "description": "Production incident or imminent security exploit — drop everything"
+    },
+    {
+      "name": "P1",
+      "color": "D93F0B",
+      "description": "Every other bug; or non-bug blocking another team's delivery"
+    },
+    {
+      "name": "P2",
+      "color": "E4E669",
+      "description": "Important non-bug; complete this sprint or cycle"
+    },
+    {
+      "name": "P3",
+      "color": "0075CA",
+      "description": "Lower priority; schedule when capacity allows"
+    },
+    {
+      "name": "P4",
+      "color": "CFD3D7",
+      "description": "Nice to have; add to backlog"
+    }
+  ],
+  "concerns": [
+    {
+      "name": "security",
+      "color": "B60205",
+      "description": "Has a security dimension — on a bug: fix first"
+    },
+    {
+      "name": "blocked",
+      "color": "000000",
+      "description": "Waiting on a dependency — add Blocked by #N in body"
+    },
+    {
+      "name": "incident-follow-up",
+      "color": "FBCA04",
+      "description": "Generated from postmortem; prioritize above normal enhancement work"
+    }
+  ],
+  "claim_statuses": [
+    {
+      "name": "status:wip",
+      "color": "D93F0B",
+      "description": "Claimed and in progress — do NOT grab"
+    },
+    {
+      "name": "status:in-review",
+      "color": "FBCA04",
+      "description": "PR open, awaiting coordinator review and merge"
+    }
+  ],
+  "lanes": [
+    {
+      "name": "lane:foundation",
+      "color": "1D76DB",
+      "description": "Shared foundation: Terraform modules, OIDC trust, base images, SLO framework — COORDINATOR ONLY"
+    },
+    {
+      "name": "lane:compute",
+      "color": "0E8A16",
+      "description": "EKS/Kubernetes fleet, node groups, resource management, Kubernetes upgrades"
+    },
+    {
+      "name": "lane:networking",
+      "color": "5319E7",
+      "description": "Envoy Proxy, API gateway, service mesh, TLS/mTLS, ingress, DNS"
+    },
+    {
+      "name": "lane:identity",
+      "color": "B60205",
+      "description": "OIDC workload identity, secrets management, cert rotation, RBAC, IAM"
+    },
+    {
+      "name": "lane:observability",
+      "color": "006B75",
+      "description": "OTel pipeline, SLO/SLI alert rules, dashboards, on-call routing"
+    },
+    {
+      "name": "lane:ci-cd",
+      "color": "BFD4F2",
+      "description": "Deployment pipelines, release automation, build infrastructure"
+    },
+    {
+      "name": "lane:platform-api",
+      "color": "C2E0C6",
+      "description": "Internal developer APIs, service onboarding, self-service tooling"
+    },
+    {
+      "name": "lane:cost",
+      "color": "F9D0C4",
+      "description": "Cost attribution, FinOps dashboards, budget alerts, chargeback"
+    }
+  ],
+  "milestones": [
+    {
+      "name": "Phase 1: Foundational",
+      "description": "Core infrastructure that everything else depends on"
+    },
+    {
+      "name": "Phase 2: Developer Experience",
+      "description": "Self-service, onboarding, developer tooling"
+    },
+    {
+      "name": "Phase 3: Reliability",
+      "description": "SLO framework, advanced observability, chaos engineering"
+    },
+    {
+      "name": "Phase 4: Scale",
+      "description": "Cost optimization, multi-region, advanced security"
+    }
+  ],
+  "project_board": null
+}

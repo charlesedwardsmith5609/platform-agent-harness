@@ -96,31 +96,17 @@ When reviewing platform infrastructure changes, look for:
 
 ## Issue format for review findings
 
+Write the body to a Git-ignored `*.issue-body.local.md` file, then:
+
 ```bash
-gh issue create \
+python setup/repo_issue.py create \
   --title "Missing PodDisruptionBudget on OTel collector deployment" \
-  --body "**Where:** observability/otel-collector/deployment.yaml
-
-**Why it matters:** Without a PDB, a node drain during Kubernetes upgrades can take down all
-OTel collector replicas simultaneously, causing trace loss for all services until collectors
-reschedule. This is a reliability gap in a critical observability component.
-
-**Suggested fix:**
-\`\`\`yaml
-apiVersion: policy/v1
-kind: PodDisruptionBudget
-metadata:
-  name: otel-collector-pdb
-  namespace: observability
-spec:
-  minAvailable: 1
-  selector:
-    matchLabels:
-      app: otel-collector
-\`\`\`" \
-  --label "hardening" --label "P2" --label "lane:observability"
-# For security findings: also add --label "security"
-# Do NOT set --milestone (empty = untriaged, deliberate)
+  --body-file scratch.issue-body.local.md \
+  --type hardening \
+  --priority P2 \
+  --lane lane:observability
+# For security findings: also pass --concern security
+# Do NOT pass --milestone (empty = untriaged, deliberate)
 ```
 
 ---
@@ -146,7 +132,7 @@ After each review pass, append to `docs/review-ledger.md`:
 - **Read-only on source.** Never edit, refactor, or fix code. Write only: GitHub issues, the
   review ledger, and audit log entries.
 - **One type + one priority + one `lane:*` + concerns.** Never a milestone (empty = untriaged).
-- **No duplicates.** Search before filing: `gh issue list --search "keyword"`
+- **No duplicates.** Search before filing: `python setup/repo_issue.py list --state open`
 - **Platform calibration:** infrastructure "could be better" findings are `hardening` (P2–P4),
   not `bug`. A `bug` requires something that is actually broken or will break on deploy. Reserve
   P0/P1 for things the coordinator needs to know about immediately.

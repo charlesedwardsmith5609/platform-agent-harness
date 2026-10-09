@@ -1,0 +1,46 @@
+{
+  "locations": {
+    "REPLACE_WITH_YOUR_REPO_GIT_ROOT": {
+      "tool_approvals": [
+        {
+          "kind": "commands",
+          "commandIdentifiers": [
+            "gh auth status",
+            "gh issue:*",
+            "gh label:*",
+            "gh milestone:*",
+            "gh pr:*",
+            "gh project:*",
+            "git add:*",
+            "git branch:*",
+            "git commit:*",
+            "git diff:*",
+            "git fetch:*",
+            "git log:*",
+            "git ls-files:*",
+            "git pull:*",
+            "git push:*",
+            "git rebase:*",
+            "git remote:*",
+            "git rev-parse:*",
+            "git show:*",
+            "git stash:*",
+            "git status:*",
+            "git switch:*",
+            "git worktree:*",
+            "python:*",
+            "python3:*",
+            "pytest:*",
+            "terraform:*",
+            "tflint:*",
+            "make:*"
+          ]
+        },
+        {
+          "kind": "write"
+        }
+      ],
+      "allowed_directories": []
+    }
+  }
+}

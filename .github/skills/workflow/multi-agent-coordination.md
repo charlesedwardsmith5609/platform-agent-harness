@@ -79,25 +79,26 @@ process violation. Platform-wide breakage follows. Workers that identify a neede
 
 ---
 
-## 4. Claim protocol (the lock — all three parts required)
+## 4. Claim protocol (the lock — one wrapper)
 
-The claim is atomic: all three parts must be applied before starting any implementation work.
+The claim is atomic: the wrapper applies status and CLAIM comment together before any implementation work.
 
 ```bash
-# Part 1: status label (the authoritative "in flight, do not grab" signal)
-gh issue edit <n> --add-label "status:wip"
-
-# Part 2: CLAIM comment (carries agent handle, branch, and timestamp — what labels can't)
-gh issue comment <n> --body "🤖 CLAIM · lane:<X> · worker=<your-handle> · branch=issue/<n>-<slug> · $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+python setup/repo_issue.py claim \
+  --issue <n> \
+  --lane lane:<X> \
+  --worker <your-handle> \
+  --branch issue/<n>-<slug>
 ```
 
+The wrapper applies the status label and the CLAIM comment together, then verifies both.
+
 **Grabbable** means ALL of: open issue, correct `lane:*`, no `status:wip`, no `status:in-review`,
-no `blocked` label, no open CLAIM comment. Always check before claiming.
+no `blocked` label, no open CLAIM comment. The wrapper refuses otherwise.
 
 **Release** (if blocked or abandoning):
 ```bash
-gh issue edit <n> --remove-label "status:wip" --add-label "blocked"
-gh issue comment <n> --body "🤖 RELEASE · Reason: [blocked by #M / abandoning because X]"
+python setup/repo_issue.py release --issue <n> --reason-file scratch.rationale.local.md
 ```
 
 **Status label lifecycle:**
@@ -146,12 +147,12 @@ Then:
    ## Blast radius
    [Which systems/teams are affected and how]"
    ```
-7. **Update labels:** `gh issue edit <n> --remove-label "status:wip" --add-label "status:in-review"`
+7. **Update labels:** `python setup/repo_issue.py in-review --issue <n>`
 8. **Append acceptance scenarios** to `docs/test-scenarios/pending.md` for any change that
    requires human or integration verification
 9. **Hand off to coordinator** — the PR is the handoff. A brief issue comment noting the PR is
    open is optional but helpful.
-10. **Re-triage your lane** before declaring it empty — `gh issue list --label "lane:<X>" --state open`
+10. **Re-triage your lane** before declaring it empty — `python setup/repo_issue.py list --state open` and keep only issues labeled `lane:<X>`
 
 ---
 
@@ -216,13 +217,13 @@ Read in this order:
 Worker loop:
 1. Find the highest-priority GRABBABLE issue with label lane:<X> —
    open, no status:wip/in-review/blocked, no open CLAIM comment
-2. CLAIM it: add status:wip label + post CLAIM comment with your handle + branch + timestamp
+2. CLAIM it: `python setup/repo_issue.py claim --issue <n> --lane lane:<X> --worker <handle> --branch issue/<n>-<slug>`
 3. git fetch origin && git switch -c issue/<n>-<slug> origin/main
 4. Read relevant coding skills before implementing
 5. Implement following platform engineering principles and security hardening
 6. Validate locally (each command as a separate call — never chain)
 7. Open PR with Closes #<n>, blast radius, and validation results
-8. Set status:in-review, drop status:wip
+8. `python setup/repo_issue.py in-review --issue <n>`
 9. Append docs/test-scenarios/pending.md scenarios for human/integration verification
 10. Hand PR to coordinator — do NOT self-merge
 11. Re-triage your lane before declaring it empty
@@ -235,36 +236,15 @@ Never grab issues outside lane:<X>. Never self-merge.
 
 ## 9. GitHub setup (one time)
 
+Labels come from `setup/project-taxonomy.json`. Preview, then create:
+
 ```bash
-# Lane labels
-gh label create "lane:foundation"    -c "#1D76DB" -d "Shared foundation: Terraform modules, OIDC trust, base images, SLO framework — COORDINATOR ONLY"
-gh label create "lane:compute"       -c "#0E8A16" -d "EKS/Kubernetes fleet, node groups, resource management"
-gh label create "lane:networking"    -c "#5319E7" -d "Envoy Proxy, API gateway, service mesh, TLS/mTLS, ingress"
-gh label create "lane:identity"      -c "#E4E669" -d "OIDC workload identity, secrets management, cert rotation, RBAC"
-gh label create "lane:observability" -c "#006B75" -d "OTel pipeline, SLO/SLI alert rules, dashboards, on-call routing"
-gh label create "lane:ci-cd"         -c "#BFD4F2" -d "Deployment pipelines, release automation, build infrastructure"
-gh label create "lane:platform-api"  -c "#C2E0C6" -d "Internal developer APIs, service onboarding, self-service tooling"
-gh label create "lane:cost"          -c "#F9D0C4" -d "Cost attribution, FinOps dashboards, budget alerts"
+python setup/create_labels.py --plan
+python setup/create_labels.py
+```
 
-# Status labels
-gh label create "status:wip"          -c "#D93F0B" -d "Claimed and in progress — do NOT grab"
-gh label create "status:in-review"    -c "#FBCA04" -d "PR open, awaiting coordinator review"
+To restore color and description for taxonomy-owned labels without touching others:
 
-# Type labels
-gh label create "bug"          -c "#D73A4A" -d "Something is broken — P0/P1 only"
-gh label create "feature"      -c "#A2EEEF" -d "New platform capability"
-gh label create "enhancement"  -c "#84B6EB" -d "Improving an existing capability"
-gh label create "hardening"    -c "#E4E669" -d "Defensive improvement, tech debt, validation gaps"
-
-# Priority labels
-gh label create "P0" -c "#B60205" -d "Production incident or imminent security exploit — drop everything"
-gh label create "P1" -c "#D93F0B" -d "Every other bug; or non-bug blocking another team"
-gh label create "P2" -c "#E4E669" -d "Important non-bug; complete this sprint"
-gh label create "P3" -c "#0075CA" -d "Lower priority; next cycle"
-gh label create "P4" -c "#CFD3D7" -d "Nice to have; backlog"
-
-# Concern labels
-gh label create "security"          -c "#B60205" -d "Has a security dimension"
-gh label create "blocked"           -c "#000000" -d "Waiting on a dependency"
-gh label create "incident-follow-up" -c "#E4E669" -d "Created from postmortem; prioritize"
+```bash
+python setup/create_labels.py --reconcile
 ```
