@@ -15,8 +15,9 @@ Adoption on a real infra repo has not started yet.
 
 ## Active initiatives
 
-1. **Dogfood trial (this repo)** — labels/milestones live; issues #2 and #5 closed via
-   wrappers. Ready for a second-repo trial when an infra target is chosen.
+1. **Dogfood trial** — this repo's harness issues #2/#5 closed. Second-repo sandbox:
+   [`acme-platform-infra-sandbox`](https://github.com/charlesedwardsmith5609/acme-platform-infra-sandbox)
+   (private dummy fleet) with harness installed and sample issue #1 on `lane:observability`.
 2. **P1 harness quality** — done (#2 package split, #5 argparse/batch list/release modes).
 3. **Adoption kit** — trial-install guide + Windows `.ps1` launchers in place.
 
