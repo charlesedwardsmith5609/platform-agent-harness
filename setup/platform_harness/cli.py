@@ -5,7 +5,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 
+from .doctor import run_doctor
 from .errors import IssueError
 from .issue_ops import (
     change_child_relation,
@@ -17,7 +19,12 @@ from .issue_ops import (
     release_issue,
     view_issue,
 )
+from .pr_draft import build_pr_draft, write_pr_draft_file
+from .scaffold import scaffold_initiative
+from .sweep import sweep_stale_claims
 from .taxonomy import load_taxonomy
+from .telemetry import emit_event
+from .velocity import velocity_report
 
 COMMANDS = (
     "create",
@@ -29,6 +36,11 @@ COMMANDS = (
     "claim",
     "release",
     "in-review",
+    "doctor",
+    "velocity",
+    "pr-draft",
+    "sweep-stale",
+    "scaffold",
 )
 
 
@@ -85,7 +97,7 @@ def build_parser() -> argparse.ArgumentParser:
         rel.add_argument("--parent", required=True)
         rel.add_argument("--child", required=True)
 
-    claim = sub.add_parser("claim", help="Fail-closed structured claim")
+    claim = sub.add_parser("claim", help="Fail-closed structured claim (respects lane wip_limit)")
     claim.add_argument("--issue", required=True)
     claim.add_argument("--lane", required=True)
     claim.add_argument("--worker", required=True)
@@ -99,12 +111,79 @@ def build_parser() -> argparse.ArgumentParser:
     review = sub.add_parser("in-review", help="Move status:wip → status:in-review")
     review.add_argument("--issue", required=True)
 
+    doctor = sub.add_parser("doctor", help="Health check or consumer adoption scorecard")
+    doctor.add_argument(
+        "--offline",
+        action="store_true",
+        help="Skip gh CLI / auth probes (CI and air-gapped checks)",
+    )
+    doctor.add_argument(
+        "--target",
+        help="Consumer repo path for adoption scorecard (0–100)",
+    )
+
+    velocity = sub.add_parser("velocity", help="Claim/PR cycle-time and aging report")
+    velocity.add_argument("--days", type=int, default=14)
+
+    pr_draft = sub.add_parser("pr-draft", help="Emit PR title/body skeleton for an issue")
+    pr_draft.add_argument("--issue", required=True)
+    pr_draft.add_argument(
+        "--write",
+        action="store_true",
+        help="Write body to pr-<n>.issue-body.local.md",
+    )
+
+    sweep = sub.add_parser("sweep-stale", help="Find/release stale status:wip claims")
+    sweep.add_argument("--days", type=int, default=7)
+    sweep.add_argument(
+        "--apply",
+        action="store_true",
+        help="Actually release stale claims (default is dry-run)",
+    )
+
+    scaffold = sub.add_parser(
+        "scaffold",
+        help="Create parent initiative + blocked per-lane child issues",
+    )
+    scaffold.add_argument("--title", required=True)
+    scaffold.add_argument("--body-file", required=True)
+    scaffold.add_argument(
+        "--lane",
+        action="append",
+        default=[],
+        dest="lanes",
+        help="Worker lane (repeatable). Foundation added first unless --no-foundation.",
+    )
+    scaffold.add_argument("--type", default="feature")
+    scaffold.add_argument("--priority", default="P2")
+    scaffold.add_argument(
+        "--no-foundation",
+        action="store_true",
+        help="Do not prepend lane:foundation as the parent",
+    )
+
     return parser
 
 
 def dispatch_namespace(namespace: argparse.Namespace) -> object:
-    taxonomy = load_taxonomy()
     command = namespace.command
+    if command == "doctor":
+        return run_doctor(
+            probe_github=not bool(getattr(namespace, "offline", False)),
+            target=getattr(namespace, "target", None),
+        )
+    if command == "velocity":
+        report = velocity_report(days=int(namespace.days))
+        # Keep response concise for agents — drop huge internal lists already summarized.
+        return report
+    if command == "pr-draft":
+        draft = build_pr_draft(issue=namespace.issue)
+        if getattr(namespace, "write", False):
+            path = write_pr_draft_file(draft)
+            draft = {**draft, "written": str(path)}
+        return draft
+
+    taxonomy = load_taxonomy()
     if command == "create":
         return create_issue(
             taxonomy,
@@ -156,6 +235,22 @@ def dispatch_namespace(namespace: argparse.Namespace) -> object:
             _flag_args(namespace, "parent", "child"),
             unlink=command == "unlink-child",
         )
+    if command == "sweep-stale":
+        return sweep_stale_claims(
+            taxonomy,
+            days=int(namespace.days),
+            dry_run=not bool(getattr(namespace, "apply", False)),
+        )
+    if command == "scaffold":
+        return scaffold_initiative(
+            taxonomy,
+            title=namespace.title,
+            body_file=namespace.body_file,
+            lanes=list(namespace.lanes or []),
+            include_foundation=not bool(getattr(namespace, "no_foundation", False)),
+            type_name=namespace.type,
+            priority=namespace.priority,
+        )
     raise IssueError(f"unknown command: {command}")
 
 
@@ -167,13 +262,28 @@ def dispatch(command: str, args: list[str]) -> object:
 
 
 def main(argv: list[str] | None = None) -> int:
+    started = time.monotonic()
+    command = None
     try:
         parser = build_parser()
         namespace = parser.parse_args(argv)
+        command = namespace.command
         result = dispatch_namespace(namespace)
         sys.stdout.write(f"{json.dumps(result, indent=2)}\n")
+        duration_ms = int((time.monotonic() - started) * 1000)
+        emit_event("command.ok", command=command, duration_ms=duration_ms)
+        if command == "doctor" and isinstance(result, dict) and not result.get("ok"):
+            return 1
         return 0
     except IssueError as error:
+        duration_ms = int((time.monotonic() - started) * 1000)
+        emit_event(
+            "command.error",
+            command=command,
+            duration_ms=duration_ms,
+            error_type="IssueError",
+            error=str(error)[:500],
+        )
         sys.stderr.write(f"{error}\n")
         return 1
 

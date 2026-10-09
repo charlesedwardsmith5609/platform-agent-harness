@@ -102,7 +102,8 @@ Protocol inside the wrapper:
 Free-text mentions of the word "CLAIM" do **not** count. Only harness markers do.
 
 **Grabbable** means ALL of: open issue, correct `lane:*`, no `status:wip`, no `status:in-review`,
-no `blocked` label, no active structured CLAIM. The wrapper refuses otherwise.
+no `blocked` label, no active structured CLAIM, and the lane is under its taxonomy `wip_limit`.
+The wrapper refuses otherwise (including WIP-limit refusals).
 
 **Release** (explicit mode required):
 ```bash
@@ -130,18 +131,18 @@ git worktree add ../platform-wt-obs -b issue/<n>-<slug> origin/main
 ```
 
 Then:
-2. **Claim** the issue (§4)
+2. **Claim** the issue (§4) — wrapper posts a structured CLAIM, then `status:wip`
 3. **Read skills** — `coding/platform-engineering.md` + the lane-specific skill before writing anything
 4. **Implement** — follow platform engineering principles, hardening guidelines, and the lane's
    validation mode. Comment the *why*, not the *what*. Reference `(#<n>)` in commit messages.
-5. **Validate locally** — run each validation command as its own separate call. Never chain with
-   `&&` or pipes. Never open a red PR.
+5. **Validate locally** — run each validation command from `CLAUDE.md` as its own separate call.
+   Never chain with `&&` or pipes. Never open a red PR.
+   In this harness repo:
    ```bash
-   terraform validate        # separate call
-   terraform fmt -check -recursive   # separate call
-   tflint --recursive        # separate call
-   pytest tests/ -v          # separate call
+   python -m unittest discover -s tests -v
+   python setup/apply_permissions.py --dry-run
    ```
+   In a fleet repo, use that repo's Terraform/cluster commands instead.
 6. **Open PR:**
    ```bash
    git push -u origin issue/<n>-<slug>
@@ -159,12 +160,19 @@ Then:
    ## Blast radius
    [Which systems/teams are affected and how]"
    ```
-7. **Update labels:** `python setup/repo_issue.py in-review --issue <n>`
-8. **Append acceptance scenarios** to `docs/test-scenarios/pending.md` for any change that
+7. **Draft PR body:** `python setup/repo_issue.py pr-draft --issue <n> --write` then open the PR
+8. **Update labels:** `python setup/repo_issue.py in-review --issue <n>`
+9. **Append acceptance scenarios** to `docs/test-scenarios/pending.md` for any change that
    requires human or integration verification
-9. **Hand off to coordinator** — the PR is the handoff. A brief issue comment noting the PR is
+10. **Hand off to coordinator** — the PR is the handoff. A brief issue comment noting the PR is
    open is optional but helpful.
-10. **Re-triage your lane** before declaring it empty — `python setup/repo_issue.py list --state open` and keep only issues labeled `lane:<X>`
+11. **Re-triage your lane** before declaring it empty — `python setup/repo_issue.py list --state open` and keep only issues labeled `lane:<X>`
+
+Coordinator velocity hygiene (periodic):
+```bash
+python setup/repo_issue.py velocity --days 14
+python setup/repo_issue.py sweep-stale --days 7
+```
 
 ---
 
@@ -228,9 +236,9 @@ Read in this order:
 
 Worker loop:
 1. Find the highest-priority GRABBABLE issue with label lane:<X> —
-   open, no status:wip/in-review/blocked, no open CLAIM comment
-2. CLAIM it: `python setup/repo_issue.py claim --issue <n> --lane lane:<X> --worker <handle> --branch issue/<n>-<slug>`
-3. git fetch origin && git switch -c issue/<n>-<slug> origin/main
+   open, no status:wip/in-review/blocked, no active structured CLAIM marker
+2. git fetch origin; git switch -c issue/<n>-<slug> origin/main
+3. CLAIM it: `python setup/repo_issue.py claim --issue <n> --lane lane:<X> --worker <handle> --branch issue/<n>-<slug>`
 4. Read relevant coding skills before implementing
 5. Implement following platform engineering principles and security hardening
 6. Validate locally (each command as a separate call — never chain)

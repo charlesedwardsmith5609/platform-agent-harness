@@ -24,8 +24,11 @@ from .taxonomy import (
     configured_item,
     ignored_issue_file,
     positive_issue_number,
+    validate_claim_branch,
+    validate_claim_worker,
     validate_title,
 )
+from .telemetry import emit_event
 
 CLAIM_MARKER_RE = re.compile(
     r"<!--\s*harness:claim\s+v1\s+id=(?P<id>[0-9a-fA-F-]{36})\s*-->"
@@ -255,6 +258,42 @@ def assert_grabbable(issue: dict, lane: str) -> None:
         raise IssueError("issue already has a structured CLAIM")
 
 
+def lane_wip_limit(taxonomy: dict, lane: str) -> int | None:
+    """Return configured WIP limit for a lane, or None when unlimited/unset."""
+    item = configured_item(taxonomy["lanes"], lane, "issue lane")
+    limit = item.get("wip_limit")
+    if limit is None:
+        return None
+    if not isinstance(limit, int) or limit < 1:
+        raise IssueError(f"lane {lane} wip_limit must be a positive integer or null")
+    return limit
+
+
+def count_lane_wip(lane: str, *, exclude_issue: int | None = None) -> int:
+    """Count open issues in lane that currently hold status:wip."""
+    count = 0
+    for issue in list_issue_records("open"):
+        number = issue.get("number")
+        if exclude_issue is not None and number == exclude_issue:
+            continue
+        labels = label_name_set(issue)
+        if lane.lower() in labels and "status:wip" in labels:
+            count += 1
+    return count
+
+
+def assert_lane_wip_available(taxonomy: dict, lane: str, *, exclude_issue: int | None = None) -> None:
+    limit = lane_wip_limit(taxonomy, lane)
+    if limit is None:
+        return
+    current = count_lane_wip(lane, exclude_issue=exclude_issue)
+    if current >= limit:
+        raise IssueError(
+            f"lane {lane} is at WIP limit ({current}/{limit}); "
+            "finish or release an in-progress claim before taking more work"
+        )
+
+
 def _relinquish_lost_claim(number: int, claim_id: str) -> None:
     run_gh(
         [
@@ -283,12 +322,11 @@ def claim_issue(taxonomy: dict, args: list[str]) -> dict:
     )
     number = positive_issue_number(argument_value(args, "--issue"))
     lane = configured_item(taxonomy["lanes"], argument_value(args, "--lane"), "issue lane")["name"]
-    worker = argument_value(args, "--worker")
-    branch = argument_value(args, "--branch")
-    if not worker or not branch:
-        raise IssueError("claim requires --worker and --branch")
+    worker = validate_claim_worker(argument_value(args, "--worker"))
+    branch = validate_claim_branch(argument_value(args, "--branch"))
     issue = view_issue_number(number)
     assert_grabbable(issue, lane)
+    assert_lane_wip_available(taxonomy, lane, exclude_issue=number)
     ensure_label(configured_item(taxonomy["claim_statuses"], "status:wip", "claim status"))
 
     claim_id = str(uuid.uuid4())
@@ -305,6 +343,14 @@ def claim_issue(taxonomy: dict, args: list[str]) -> dict:
     winner = claim_winner(after_comment)
     if winner is None or winner["id"] != claim_id:
         _relinquish_lost_claim(number, claim_id)
+        emit_event(
+            "claim.race_lost",
+            issue=number,
+            lane=lane,
+            worker=worker,
+            claim_id=claim_id,
+            winner_id=(winner or {}).get("id"),
+        )
         raise IssueError(
             f"issue {number} claim race lost; another structured CLAIM is active"
         )
@@ -319,7 +365,22 @@ def claim_issue(taxonomy: dict, args: list[str]) -> dict:
         or len(active_claims(claimed)) != 1
     ):
         _relinquish_lost_claim(number, claim_id)
+        emit_event(
+            "claim.postcondition_failed",
+            issue=number,
+            lane=lane,
+            worker=worker,
+            claim_id=claim_id,
+        )
         raise IssueError(f"issue {number} failed claim postcondition verification")
+    emit_event(
+        "claim.won",
+        issue=number,
+        lane=lane,
+        worker=worker,
+        branch=branch,
+        claim_id=claim_id,
+    )
     return {
         "number": number,
         "url": claimed.get("url"),

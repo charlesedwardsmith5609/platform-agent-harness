@@ -40,12 +40,16 @@ Optional: configure `project_board` in `setup/project-taxonomy.json` — see
 
 ## 5. Prove coordination
 
-1. Create + classify one issue via `python setup/repo_issue.py`
-2. Claim → implement → PR → `in-review` → coordinator merge
-3. Run `python setup/claim_concurrency_drill.py`
+1. Score the checkout: `python setup/repo_issue.py doctor --target . --offline`
+2. Create + classify one issue via `python setup/repo_issue.py`
+3. Claim → implement → `pr-draft` → PR → `in-review` → coordinator merge
+4. Run `python setup/claim_concurrency_drill.py`
+5. Show flow: `python setup/repo_issue.py velocity --days 14`
 
 ## 6. Scale
 
 Repeat sync + identity adaptation per repo. Keep taxonomy lane names stable
 across repos when possible so workers can move between codebases without
-relearning labels.
+relearning labels. Track adoption with `doctor --target` scores per fleet repo.
+
+Live demo script: [`five-minute-demo.md`](five-minute-demo.md).

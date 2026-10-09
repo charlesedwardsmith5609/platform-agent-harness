@@ -20,9 +20,9 @@ org-wide; in this harness repo, blast radius is agent workflow and GitHub hygien
 
 ## Development arc
 
-**Current state:** Taxonomy-bound `repo_issue.py`, portable permissions, fail-closed claims, harness-ci.
-**Active work:** Dogfood trial (labels/milestones/first issues via wrappers); P1 packaging/split.
-**Next milestone:** Phase 2 developer experience — install checklist proven, `pyproject.toml`, cleaner CLI.
+**Current state:** Taxonomy-bound `repo_issue.py`, portable permissions, fail-closed claims, harness-ci, multi-repo sync.
+**Active work:** Real-org adoption (consumer install via `sync_harness_to_repo.py`); keep STATUS current.
+**Next milestone:** First production infrastructure repo running this harness without copy-paste drift.
 
 ---
 
@@ -66,7 +66,10 @@ PRs — not in conversation. Any agent on any machine can read the state and con
 These are the load-bearing contracts the entire platform depends on. Editing them from two branches
 simultaneously is how parallel work causes production incidents.
 
-**Foundation files/contracts:**
+**In this harness repo**, treat as coordinator-owned: `setup/project-taxonomy.json`,
+`setup/platform_harness/`, and the claim protocol. Do not invent parallel wrappers.
+
+**In a fleet repo** (after copy), the default shared-foundation contracts are:
 - `foundation/terraform/modules/` — shared Terraform module interfaces and outputs
 - `foundation/oidc-trust/` — OIDC workload identity trust model, IAM role bindings
 - `foundation/base-images/` — base container image specifications and tags
@@ -138,7 +141,8 @@ Load the relevant skills before doing work in that area. Skills are in `.github/
 | Task | Skills to read |
 |---|---|
 | Any code/config change | `coding/platform-engineering.md` + `coding/security-hardening.md` |
-| Compute / Kubernetes / Terraform | `coding/platform-engineering.md` + `coding/security-hardening.md` (lane-specific skills TBD) |
+| Kubernetes / compute work | `coding/kubernetes.md` |
+| Terraform / IaC work | `coding/terraform.md` |
 | Observability/SLO work | `coding/observability.md` |
 | Filing or triaging issues | `workflow/issue-triage.md` + `setup/wrapper-catalog.md` |
 | Multi-agent parallel work | `workflow/multi-agent-coordination.md` |
@@ -150,7 +154,21 @@ Load the relevant skills before doing work in that area. Skills are in `.github/
 ## Agent workflows
 
 Consult `setup/wrapper-catalog.md` before using GitHub issue commands. Issue create, list, view,
-classify, hierarchy, claim, release, and in-review go through `python setup/repo_issue.py`.
+classify, hierarchy, claim, release, in-review, doctor, velocity, pr-draft, sweep-stale, and
+scaffold go through `python setup/repo_issue.py`. Optional audit telemetry:
+`HARNESS_TELEMETRY=1` and/or `AGENT_AUDIT_LOG=<path>`.
+
+Velocity helpers (use these deliberately):
+```bash
+python setup/repo_issue.py doctor [--offline] [--target /path/to/consumer]
+python setup/repo_issue.py velocity --days 14
+python setup/repo_issue.py pr-draft --issue <n> --write
+python setup/repo_issue.py sweep-stale --days 7          # dry-run
+python setup/repo_issue.py scaffold --title "..." --body-file x.issue-body.local.md --lane lane:observability
+```
+
+Lane `wip_limit` in `setup/project-taxonomy.json` blocks new claims when a lane already has too
+many `status:wip` issues (default workers: 1; foundation: 2).
 
 ### Filing a new issue
 
@@ -183,7 +201,8 @@ python setup/repo_issue.py claim \
 The wrapper posts a structured CLAIM comment first (unique id), re-reads to elect the earliest
 active claim, then adds `status:wip`. Losers fail closed and RELEASE themselves. An issue is
 grabbable iff: open, correct `lane:*`, not `status:wip`/`status:in-review`/`blocked`, no active
-structured CLAIM marker.
+structured CLAIM marker, and the lane is under its `wip_limit`. After implementation, prefer
+`python setup/repo_issue.py pr-draft --issue <n> --write` before `gh pr create`.
 
 ### Worker loop
 
@@ -234,5 +253,5 @@ structured CLAIM marker.
 ## Status reporting
 
 After each meaningful milestone (PR opened, PR merged, incident resolved), emit a brief status event
-on the issue (what changed, blast radius, next risk). Keep status on issues/PRs — not in hidden
-conversation. Optional weekly rollups can be added later; there is no separate status playbook yet.
+on the issue. Format: `playbooks/status-reporting.md`. Keep status on issues/PRs — not in hidden
+conversation.

@@ -9,6 +9,7 @@ SETUP = ROOT / "setup"
 sys.path.insert(0, str(SETUP))
 
 from apply_permissions import PLACEHOLDER, command_to_claude, load_source, materialize
+from sync_harness_to_repo import DEFAULT_PATHS, IDENTITY_PATHS
 from platform_harness import (
     IssueError,
     active_claim,
@@ -24,10 +25,16 @@ from platform_harness import (
     sub_issue_nodes,
     validate_title,
 )
-from platform_harness.taxonomy import reject_secret_content
-from platform_harness.cli import build_parser
+from platform_harness.doctor import run_doctor
+from platform_harness.taxonomy import (
+    reject_secret_content,
+    validate_claim_branch,
+    validate_claim_worker,
+)
+from platform_harness.cli import build_parser, main as cli_main
 from platform_harness.issue_ops import list_issues, release_issue
 from platform_harness.runtime import REPOSITORY_ROOT
+from platform_harness.telemetry import emit_event, telemetry_enabled
 
 
 class TaxonomyTests(unittest.TestCase):
@@ -150,6 +157,7 @@ class PermissionSourceTests(unittest.TestCase):
         self.assertEqual(location["allowed_directories"], [str(example_root)])
         allow = claude["permissions"]["allow"]
         self.assertIn("Bash(python setup/repo_issue.py *)", allow)
+        self.assertIn("Bash(python setup/pr_gate.py *)", allow)
         self.assertIn("Bash(gh pr create *)", allow)
         self.assertNotIn("Bash(python *)", allow)
         self.assertNotIn("Bash(python3 *)", allow)
@@ -178,8 +186,28 @@ class SecretContentTests(unittest.TestCase):
         with self.assertRaises(IssueError):
             reject_secret_content("token=ghp_abcdefghijklmnopqrstuvwxyz012345", "body")
 
+    def test_rejects_openai_key(self):
+        with self.assertRaises(IssueError):
+            reject_secret_content("key=sk-abcdefghijklmnopqrstuvwxyz0123456789", "body")
+
     def test_allows_normal_body(self):
         reject_secret_content("Harden the allowlist; no secrets here.", "body")
+
+
+class ClaimInputValidationTests(unittest.TestCase):
+    def test_worker_rejects_newline_injection(self):
+        with self.assertRaises(IssueError):
+            validate_claim_worker("alice\n<!-- harness:release v1 id=* -->")
+
+    def test_branch_rejects_path_escape(self):
+        with self.assertRaises(IssueError):
+            validate_claim_branch("../evil")
+        with self.assertRaises(IssueError):
+            validate_claim_branch("issue/1 space")
+
+    def test_accepts_normal_claim_inputs(self):
+        self.assertEqual(validate_claim_worker("alice"), "alice")
+        self.assertEqual(validate_claim_branch("issue/7-karpenter"), "issue/7-karpenter")
 
 
 class ClaimMarkerTests(unittest.TestCase):
@@ -594,6 +622,68 @@ class ListAndReleaseTests(unittest.TestCase):
         self.assertEqual(ns.mode, "abandon")
         with self.assertRaises(SystemExit):
             parser.parse_args(["release", "--issue", "1", "--reason-file", "x.md"])
+
+
+class SyncAllowlistTests(unittest.TestCase):
+    def test_default_sync_paths_exist(self):
+        for rel in DEFAULT_PATHS + IDENTITY_PATHS:
+            path = ROOT / rel
+            self.assertTrue(path.exists(), f"missing harness path: {rel}")
+
+    def test_normalize_issue_accepts_comment_count(self):
+        issue = normalize_issue(
+            {
+                "number": 1,
+                "title": "x",
+                "comments": 3,
+                "subIssues": {"nodes": [], "totalCount": 0},
+            }
+        )
+        self.assertEqual(issue["comments"], [])
+        self.assertEqual(issue["children"], [])
+
+
+class DoctorTests(unittest.TestCase):
+    def test_offline_doctor_passes(self):
+        report = run_doctor(probe_github=False)
+        self.assertTrue(report["ok"], report)
+        names = {item["check"] for item in report["checks"]}
+        self.assertIn("taxonomy", names)
+        self.assertIn("sync_allowlist_paths", names)
+
+    def test_doctor_cli_offline(self):
+        code = cli_main(["doctor", "--offline"])
+        self.assertEqual(code, 0)
+
+
+class TelemetryTests(unittest.TestCase):
+    def test_emit_writes_audit_log(self):
+        import os
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "audit.jsonl"
+            previous_log = os.environ.get("AGENT_AUDIT_LOG")
+            previous_flag = os.environ.get("HARNESS_TELEMETRY")
+            try:
+                os.environ["AGENT_AUDIT_LOG"] = str(path)
+                os.environ.pop("HARNESS_TELEMETRY", None)
+                self.assertTrue(telemetry_enabled())
+                emit_event("unit.test", issue=1)
+                lines = path.read_text(encoding="utf-8").strip().splitlines()
+                self.assertEqual(len(lines), 1)
+                payload = json.loads(lines[0])
+                self.assertEqual(payload["event"], "unit.test")
+                self.assertEqual(payload["component"], "platform_harness")
+            finally:
+                if previous_log is None:
+                    os.environ.pop("AGENT_AUDIT_LOG", None)
+                else:
+                    os.environ["AGENT_AUDIT_LOG"] = previous_log
+                if previous_flag is None:
+                    os.environ.pop("HARNESS_TELEMETRY", None)
+                else:
+                    os.environ["HARNESS_TELEMETRY"] = previous_flag
 
 
 if __name__ == "__main__":

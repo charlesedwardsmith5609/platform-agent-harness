@@ -11,7 +11,10 @@ ISSUE_JSON_FIELDS = (
 )
 ISSUE_JSON_FIELDS_FALLBACK = "number,title,body,state,labels,milestone,assignees,comments,url"
 # issue list does not reliably support parent/subIssues; omit them for batch list.
-LIST_JSON_FIELDS = "number,title,body,state,labels,milestone,assignees,comments,url"
+LIST_JSON_FIELDS = (
+    "number,title,body,state,labels,milestone,assignees,comments,url,"
+    "createdAt,updatedAt,closedAt"
+)
 
 _label_name_cache: set[str] | None = None
 
@@ -54,6 +57,21 @@ def sub_issue_nodes(raw) -> list:
     return [node for node in nodes if isinstance(node, dict)]
 
 
+def comment_nodes(raw) -> list:
+    """Normalize gh comments payloads (list, count int, or {nodes,...}) to comment dicts."""
+    if not raw:
+        return []
+    if isinstance(raw, int):
+        return []
+    if isinstance(raw, list):
+        nodes = raw
+    elif isinstance(raw, dict):
+        nodes = raw.get("nodes") or []
+    else:
+        return []
+    return [node for node in nodes if isinstance(node, dict)]
+
+
 def normalize_issue(issue: dict) -> dict:
     return {
         "number": issue.get("number"),
@@ -63,10 +81,13 @@ def normalize_issue(issue: dict) -> dict:
         "labels": issue.get("labels") or [],
         "milestone": issue.get("milestone") or None,
         "assignees": issue.get("assignees") or [],
-        "comments": [normalize_comment(item) for item in (issue.get("comments") or [])],
+        "comments": [normalize_comment(item) for item in comment_nodes(issue.get("comments"))],
         "parent": relation(issue.get("parent") if isinstance(issue.get("parent"), dict) else None),
         "children": [relation(child) for child in sub_issue_nodes(issue.get("subIssues"))],
         "url": issue.get("url"),
+        "createdAt": issue.get("createdAt"),
+        "updatedAt": issue.get("updatedAt"),
+        "closedAt": issue.get("closedAt"),
     }
 
 
