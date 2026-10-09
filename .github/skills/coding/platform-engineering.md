@@ -73,7 +73,8 @@ Kubernetes service account → OIDC token → AWS STS AssumeRoleWithWebIdentity 
 ```
 
 If you find yourself writing a long-lived credential into a Kubernetes secret or CI/CD system,
-stop and use OIDC instead. The harness's `github-actions/secrets-injection.yml` shows the pattern.
+stop and use OIDC instead. Copy and adapt `github-actions/secrets-injection.yml` from this
+harness into the target repo's `.github/workflows/` (the sample is not a live workflow here).
 
 ---
 
@@ -134,7 +135,10 @@ runbook before it's considered production-ready. Runbooks must include:
 - Remediation (step-by-step with rollback)
 - Escalation path
 
-The `agents/runbook_gen.py` agent automates runbook creation from incident reports.
+If you use the companion **agent-harness** execution repo, `agents/runbook_gen.py` can
+draft a runbook from an incident write-up. That script is not shipped in this
+coordination harness; a human must still approve the runbook. See
+`playbooks/incident-response.md`.
 
 ---
 

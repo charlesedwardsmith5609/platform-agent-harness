@@ -25,18 +25,21 @@ Resolve the reviewer model **at launch time**:
 4. If OpenAI is unavailable or no frontier model is accessible, **stop and report** — never
    silently fall back to the same provider
 
-The reviewer can also be launched using the Python harness in `agents/pr_reviewer.py`, which
-handles model selection, OTel instrumentation, and cost tracking automatically.
+The reviewer can also be launched from the companion **agent-harness** execution
+repository (not this coordination harness) via `agents/pr_reviewer.py`, which
+handles model selection, OTel instrumentation, and cost tracking when that repo
+is available.
 
 ---
 
-## Using the Python harness (recommended)
+## Using the Python execution harness (optional)
 
-The `agents/pr_reviewer.py` agent in this repo runs structured security and reliability review
-with OTel instrumentation and confidence gating:
+If `agent-harness/` is checked out beside the infrastructure repo, it can run a
+structured security and reliability review with OTel instrumentation and
+confidence gating:
 
 ```bash
-# Install the harness
+# From a workspace that contains the sibling agent-harness clone
 pip install -e agent-harness/
 
 # Run review against a specific PR

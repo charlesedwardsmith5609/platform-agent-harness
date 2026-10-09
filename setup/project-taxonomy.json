@@ -98,7 +98,7 @@
     },
     {
       "name": "lane:identity",
-      "color": "B60205",
+      "color": "B4A7D6",
       "description": "OIDC workload identity, secrets management, cert rotation, RBAC, IAM"
     },
     {

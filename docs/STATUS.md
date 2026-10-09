@@ -63,10 +63,10 @@ Adoption on a real infra repo has not started yet.
 
 ## Milestones
 
-- **Phase 1: Foundational** — in progress (wrappers, portable permissions, fail-closed claims, CI)
-- **Phase 2: Developer Experience** — next (trial install, packaging, install checklist)
-- **Phase 3: Reliability** — later (mocked gh coverage expansion, claim concurrency drills)
-- **Phase 4: Scale** — later (multi-repo rollout)
+- **Phase 1: Foundational** — done (wrappers, portable permissions, fail-closed claims, CI)
+- **Phase 2: Developer Experience** — done (trial install, packaging, Windows launchers)
+- **Phase 3: Reliability** — done (#9 claim drills / mocked gh coverage)
+- **Phase 4: Scale** — done (#12 multi-repo rollout guide + sync tool)
 
 ## Validation commands
 

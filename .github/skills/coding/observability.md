@@ -100,7 +100,8 @@ ALERT_WINDOWS = [
 ]
 ```
 
-See `slo-toolkit/` for a CLI to generate these automatically.
+Encode these windows in your alerting-as-code (Prometheus, Chronosphere, etc.) —
+this harness does not ship a `slo-toolkit/` CLI.
 
 **Alert fatigue rule:** if engineers are silencing or ignoring an alert, the alert is wrong —
 not the engineers. Fix the alert, not the behavior.

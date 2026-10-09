@@ -54,5 +54,5 @@ Body and rationale files must be physical, repository-local files ignored by Git
 ## Still human or coordinator-owned
 
 Pull request merge, foundation changes, and GitHub milestone creation remain explicit coordinator
-or human operations. Validation (`terraform validate`, `pytest`, …) stays as documented in
-`CLAUDE.md` — run each command as its own call.
+or human operations. Validation stays as documented in `CLAUDE.md` — run each command as its own
+call. In this harness repo that is `python -m unittest discover -s tests -v`, not pytest.

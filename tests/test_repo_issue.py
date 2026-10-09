@@ -9,6 +9,7 @@ SETUP = ROOT / "setup"
 sys.path.insert(0, str(SETUP))
 
 from apply_permissions import PLACEHOLDER, command_to_claude, load_source, materialize
+from sync_harness_to_repo import DEFAULT_PATHS, IDENTITY_PATHS
 from platform_harness import (
     IssueError,
     active_claim,
@@ -594,6 +595,25 @@ class ListAndReleaseTests(unittest.TestCase):
         self.assertEqual(ns.mode, "abandon")
         with self.assertRaises(SystemExit):
             parser.parse_args(["release", "--issue", "1", "--reason-file", "x.md"])
+
+
+class SyncAllowlistTests(unittest.TestCase):
+    def test_default_sync_paths_exist(self):
+        for rel in DEFAULT_PATHS + IDENTITY_PATHS:
+            path = ROOT / rel
+            self.assertTrue(path.exists(), f"missing harness path: {rel}")
+
+    def test_normalize_issue_accepts_comment_count(self):
+        issue = normalize_issue(
+            {
+                "number": 1,
+                "title": "x",
+                "comments": 3,
+                "subIssues": {"nodes": [], "totalCount": 0},
+            }
+        )
+        self.assertEqual(issue["comments"], [])
+        self.assertEqual(issue["children"], [])
 
 
 if __name__ == "__main__":
