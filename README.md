@@ -61,6 +61,7 @@ setup/
 docs/
   STATUS.md                        # Current state, active work, milestone progress
   guides/
+    trial-install.md               # Dogfood / first-repo trial checklist
     permissions-and-security.md    # Allowlist and wrapper rules
   test-scenarios/
     pending.md                     # Validation scenarios awaiting human/integration testing

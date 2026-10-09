@@ -7,47 +7,40 @@
 
 ## Repository identity
 
-This repository contains the platform engineering infrastructure for [YOUR ORG]. It owns the compute,
-networking, identity, observability, CI/CD, and developer platform systems that all product engineering
-teams depend on. Changes here affect the entire engineering organization.
+This repository is the **platform engineering agent harness** (coordination layer): issue
+taxonomy, claim protocol, portable permissions, and workflow skills that agents load before
+touching infrastructure work. It is currently in a **dogfood trial on itself** — see
+`docs/STATUS.md` and `docs/guides/trial-install.md`.
 
-Platform infrastructure is different from product feature work: there are no users to demo to,
-success is invisible (nothing broke), and the blast radius of a bad change is org-wide. Agent work
-in this repo demands extra discipline around validation, coordination, and the shared foundation.
+When copied into a real infra org repo, adapt this section to that org's compute, networking,
+identity, observability, CI/CD, and developer platform ownership. Blast radius there is
+org-wide; in this harness repo, blast radius is agent workflow and GitHub hygiene only.
 
 ---
 
 ## Development arc
 
-**Current state:** Describe what's running in production today.
-**Active work:** Describe the current migration, upgrade, or capability being built.
-**Next milestone:** Describe the next major deliverable.
-
-> Adapt this section to your actual repo before using the harness. Remove `[PROJECT-SPECIFIC]`
-> placeholders before shipping to production.
+**Current state:** Taxonomy-bound `repo_issue.py`, portable permissions, fail-closed claims, harness-ci.
+**Active work:** Dogfood trial (labels/milestones/first issues via wrappers); P1 packaging/split.
+**Next milestone:** Phase 2 developer experience — install checklist proven, `pyproject.toml`, cleaner CLI.
 
 ---
 
 ## Architecture overview
 
 ```
-compute/          Kubernetes / EKS fleet, node pools, resource management
-networking/       Envoy Proxy / API gateway, service mesh, traffic routing
-identity/         OIDC workload identity, secrets management, cert rotation
-observability/    OTel pipeline, Chronosphere/Datadog, SLO/SLI, alerting
-ci-cd/            Deployment pipelines, release automation, artifact management
-platform-api/     Internal developer APIs, service onboarding, self-service tooling
-foundation/       SHARED FOUNDATION — Terraform modules, base images, trust model
-                  (coordinator-owned — see §Foundation below)
+setup/            Issue wrappers, taxonomy, permissions, wrapper catalog
+.github/skills/   Workflow + coding skills agents must load before changes
+.github/workflows/Harness CI (unittest + taxonomy/permission sanity)
+docs/             STATUS, guides, review ledger, test scenarios
+tests/            Unit tests for taxonomy, permissions, claim races
+foundation/       (reserved when this harness is installed into a fleet repo)
 ```
 
 Validation commands (run these before opening any PR):
 ```bash
-terraform validate              # validate all Terraform modules
-terraform fmt -check -recursive # formatting gate
-tflint --recursive              # linting
-pytest tests/ -v                # Python agent and automation tests
-make integration-test           # full integration suite (slower)
+python -m unittest discover -s tests -v
+python setup/apply_permissions.py --dry-run
 ```
 
 ---

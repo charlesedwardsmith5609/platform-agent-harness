@@ -279,7 +279,7 @@ def parse_json(output: str, operation: str):
 
 
 def relation(issue: dict | None) -> dict | None:
-    if not issue:
+    if not issue or not isinstance(issue, dict):
         return None
     return {
         "number": issue.get("number"),
@@ -298,6 +298,19 @@ def normalize_comment(comment: dict) -> dict:
     }
 
 
+def sub_issue_nodes(raw) -> list:
+    """Normalize gh subIssues payloads (list or {nodes,totalCount}) to issue dicts."""
+    if not raw:
+        return []
+    if isinstance(raw, list):
+        nodes = raw
+    elif isinstance(raw, dict):
+        nodes = raw.get("nodes") or []
+    else:
+        return []
+    return [node for node in nodes if isinstance(node, dict)]
+
+
 def normalize_issue(issue: dict) -> dict:
     return {
         "number": issue.get("number"),
@@ -308,8 +321,8 @@ def normalize_issue(issue: dict) -> dict:
         "milestone": issue.get("milestone") or None,
         "assignees": issue.get("assignees") or [],
         "comments": [normalize_comment(item) for item in (issue.get("comments") or [])],
-        "parent": relation(issue.get("parent")),
-        "children": [relation(child) for child in (issue.get("subIssues") or [])],
+        "parent": relation(issue.get("parent") if isinstance(issue.get("parent"), dict) else None),
+        "children": [relation(child) for child in sub_issue_nodes(issue.get("subIssues"))],
         "url": issue.get("url"),
     }
 

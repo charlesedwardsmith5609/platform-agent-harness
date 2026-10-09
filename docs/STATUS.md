@@ -1,39 +1,63 @@
 # Repository status
 
-> **Adapt this file** to your actual infrastructure repository before using the harness.
-> Agents read this file to understand the current state before starting work.
+> **Trial mode:** this file describes the dogfood trial of the coordination
+> harness on itself (`platform-agent-harness`), not a live compute fleet.
 
 ## Current production state
 
-[Describe what is running in production today. What services does this repo manage?
-What is their reliability/maturity level?]
+This repository is the **coordination harness** for platform engineering agents:
+taxonomy-bound issue wrappers (`setup/repo_issue.py`), portable permissions,
+workflow skills, and CI for harness tests. There is no Kubernetes/Terraform fleet
+here — blast radius is limited to agent workflow and GitHub project hygiene.
+
+Maturity: early. Issue lifecycle + fail-closed claims + harness-ci are on `main`.
+Adoption on a real infra repo has not started yet.
 
 ## Active initiatives
 
-[List the 1–3 things currently being actively worked on.]
+1. **Dogfood trial (this repo)** — labels, milestones, first real issues filed only
+   via wrappers; capture friction in this file.
+2. **P1 harness quality** — split `repo_issue.py`, argparse CLI, batch list/label
+   cache, `pyproject.toml` packaging.
+3. **Adoption kit** — trial install guide, example STATUS, install file checklist.
+
+## Trial notes / friction
+
+- `gh` was missing on the trial machine at first; install via winget before label/issue steps.
+- `gh auth login` rejected the git-credential token (`missing required scope 'read:org'`);
+  `GH_TOKEN` from git credentials works for `gh api` / issue wrappers in this environment.
+- **Bug found in trial:** `gh issue view --json ...subIssues` returns `{nodes,totalCount}`, not a
+  list. `normalize_issue` crashed after create; issue #2 was still created. Fixed by accepting both
+  shapes.
+- Taxonomy lanes still use fleet names (`lane:compute`, …). For harness-only work,
+  map wrappers/DX → `lane:platform-api`, CI → `lane:ci-cd`, taxonomy/claim contracts → `lane:foundation`.
+- Validation is `python -m unittest discover -s tests -v` (pytest not required).
+- First trial issue: [#2](https://github.com/charlesedwardsmith5609/platform-agent-harness/issues/2)
+  (packaging / split `repo_issue`).
 
 ## Lane ownership (current)
 
 | Lane | Active owner | Current focus |
 |---|---|---|
-| `lane:foundation` | Coordinator | [current foundation work] |
-| `lane:compute` | [worker or unassigned] | [focus] |
-| `lane:networking` | [worker or unassigned] | [focus] |
-| `lane:identity` | [worker or unassigned] | [focus] |
-| `lane:observability` | [worker or unassigned] | [focus] |
-| `lane:ci-cd` | [worker or unassigned] | [focus] |
+| `lane:foundation` | Coordinator | Taxonomy + claim protocol contracts |
+| `lane:compute` | unassigned | n/a in this repo |
+| `lane:networking` | unassigned | n/a in this repo |
+| `lane:identity` | unassigned | Permissions allowlist / OIDC guidance in skills |
+| `lane:observability` | unassigned | Skills only; no OTel pipeline here |
+| `lane:ci-cd` | Coordinator | `harness-ci` workflow |
+| `lane:platform-api` | Worker-ready | Issue wrappers, wrapper catalog, DX |
+| `lane:cost` | unassigned | n/a in this repo |
 
 ## Milestones
 
-- **Phase 1: Foundational** — [status]
-- **Phase 2: Developer Experience** — [status]
+- **Phase 1: Foundational** — in progress (wrappers, portable permissions, fail-closed claims, CI)
+- **Phase 2: Developer Experience** — next (trial install, packaging, install checklist)
+- **Phase 3: Reliability** — later (mocked gh coverage expansion, claim concurrency drills)
+- **Phase 4: Scale** — later (multi-repo rollout)
 
 ## Validation commands
 
 ```bash
-terraform validate
-terraform fmt -check -recursive
-tflint --recursive
-pytest tests/ -v
-make integration-test
+python -m unittest discover -s tests -v
+python setup/apply_permissions.py --dry-run
 ```
