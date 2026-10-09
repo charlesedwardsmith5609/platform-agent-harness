@@ -1,0 +1,45 @@
+name: harness-ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Unit tests
+        run: python -m unittest discover -s tests -v
+
+      - name: Taxonomy and permission source sanity
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, "setup")
+          from apply_permissions import PLACEHOLDER, load_source, materialize
+          from repo_issue import load_taxonomy
+
+          taxonomy = load_taxonomy()
+          assert taxonomy["lanes"], "taxonomy must declare lanes"
+          assert taxonomy["milestones"], "taxonomy must declare milestones"
+          source = load_source()
+          assert list(source["locations"]) == [PLACEHOLDER]
+          text = Path("setup/agent-permissions.json").read_text(encoding="utf-8")
+          assert PLACEHOLDER in text
+          assert "C:\\\\Users" not in text
+          resolved, _ = materialize(Path("/tmp/example-platform-repo"), source)
+          assert PLACEHOLDER not in json.dumps(resolved)
+          print("sanity_ok")
+          PY

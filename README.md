@@ -67,7 +67,9 @@ docs/
     archive/                       # Confirmed scenarios (moved here after validation)
   review-ledger.md                 # Record of competing-model review passes
 tests/
-  test_repo_issue.py               # Taxonomy and permission-source unit tests
+  test_repo_issue.py               # Taxonomy, permissions, and claim-race unit tests
+.github/workflows/
+  harness-ci.yml                   # unittest + taxonomy/permission sanity on PRs
 ```
 
 ---
