@@ -81,7 +81,8 @@ process violation. Platform-wide breakage follows. Workers that identify a neede
 
 ## 4. Claim protocol (the lock — one wrapper)
 
-The claim is atomic: the wrapper applies status and CLAIM comment together before any implementation work.
+Claims are **fail-closed**, not magically atomic on GitHub. The wrapper uses a structured
+comment marker as the lock stream, then verifies ownership before work starts.
 
 ```bash
 python setup/repo_issue.py claim \
@@ -91,15 +92,24 @@ python setup/repo_issue.py claim \
   --branch issue/<n>-<slug>
 ```
 
-The wrapper applies the status label and the CLAIM comment together, then verifies both.
+Protocol inside the wrapper:
+1. Preflight: refuse if not grabbable
+2. Post `<!-- harness:claim v1 id=<uuid> -->` comment (unique id)
+3. Re-read comments; earliest active structured claim wins
+4. Losers immediately post a structured RELEASE and exit non-zero
+5. Winner adds `status:wip` and re-verifies sole ownership
+
+Free-text mentions of the word "CLAIM" do **not** count. Only harness markers do.
 
 **Grabbable** means ALL of: open issue, correct `lane:*`, no `status:wip`, no `status:in-review`,
-no `blocked` label, no open CLAIM comment. The wrapper refuses otherwise.
+no `blocked` label, no active structured CLAIM. The wrapper refuses otherwise.
 
 **Release** (if blocked or abandoning):
 ```bash
 python setup/repo_issue.py release --issue <n> --reason-file scratch.rationale.local.md
 ```
+
+Release posts `<!-- harness:release v1 id=* -->`, clears `status:wip`, and adds `blocked`.
 
 **Status label lifecycle:**
 `(open, no status)` → `status:wip` (claimed) → `status:in-review` (PR open) → *closed on merge*

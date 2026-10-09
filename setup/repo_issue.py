@@ -12,16 +12,23 @@ import os
 import re
 import subprocess
 import sys
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Callable
 
 SETUP_ROOT = Path(__file__).resolve().parent
 REPOSITORY_ROOT = SETUP_ROOT.parent
 TAXONOMY_PATH = SETUP_ROOT / "project-taxonomy.json"
 TITLE_RE = re.compile(r"^[^\x00-\x1f]{1,120}$")
 POSITIVE_INT_RE = re.compile(r"^[1-9]\d*$")
-CLAIM_RE = re.compile(r"\bCLAIM\b")
-RELEASE_RE = re.compile(r"\bRELEASE\b")
+# Only structured harness markers count — free-text "CLAIM"/"RELEASE" is ignored.
+CLAIM_MARKER_RE = re.compile(
+    r"<!--\s*harness:claim\s+v1\s+id=(?P<id>[0-9a-fA-F-]{36})\s*-->"
+)
+RELEASE_MARKER_RE = re.compile(
+    r"<!--\s*harness:release\s+v1\s+id=(?P<id>\*|[0-9a-fA-F-]{36})\s*-->"
+)
 ISSUE_JSON_FIELDS = (
     "number,title,body,state,labels,milestone,assignees,comments,parent,subIssues,url"
 )
@@ -38,9 +45,24 @@ COMMANDS = (
     "in-review",
 )
 
+CommandRunner = Callable[[list[str]], str]
+_gh_runner: CommandRunner | None = None
+_git_runner: CommandRunner | None = None
+
 
 class IssueError(ValueError):
     pass
+
+
+def set_command_runners(
+    *,
+    gh: CommandRunner | None = None,
+    git: CommandRunner | None = None,
+) -> None:
+    """Override subprocess runners (tests only). Pass None to restore defaults."""
+    global _gh_runner, _git_runner
+    _gh_runner = gh
+    _git_runner = git
 
 
 def load_taxonomy(path: Path = TAXONOMY_PATH) -> dict:
@@ -238,10 +260,14 @@ def run_trusted(executable: str, args: list[str], *, timeout: int = 30) -> str:
 
 
 def run_git(args: list[str]) -> str:
+    if _git_runner is not None:
+        return _git_runner(args)
     return run_trusted("git", args)
 
 
 def run_gh(args: list[str]) -> str:
+    if _gh_runner is not None:
+        return _gh_runner(args)
     return run_trusted("gh", args)
 
 
@@ -263,6 +289,15 @@ def relation(issue: dict | None) -> dict | None:
     }
 
 
+def normalize_comment(comment: dict) -> dict:
+    return {
+        "id": comment.get("id"),
+        "body": comment.get("body") or "",
+        "createdAt": comment.get("createdAt") or "",
+        "author": comment.get("author") or {},
+    }
+
+
 def normalize_issue(issue: dict) -> dict:
     return {
         "number": issue.get("number"),
@@ -272,7 +307,7 @@ def normalize_issue(issue: dict) -> dict:
         "labels": issue.get("labels") or [],
         "milestone": issue.get("milestone") or None,
         "assignees": issue.get("assignees") or [],
-        "comments": issue.get("comments") or [],
+        "comments": [normalize_comment(item) for item in (issue.get("comments") or [])],
         "parent": relation(issue.get("parent")),
         "children": [relation(child) for child in (issue.get("subIssues") or [])],
         "url": issue.get("url"),
@@ -468,15 +503,70 @@ def change_child_relation(args: list[str], *, unlink: bool) -> dict:
     return {"parent": parent, "child": child, "linked": not unlink}
 
 
-def active_claim(issue: dict) -> bool:
-    active = False
+def format_claim_body(
+    *,
+    claim_id: str,
+    lane: str,
+    worker: str,
+    branch: str,
+    stamp: str,
+) -> str:
+    return (
+        f"<!-- harness:claim v1 id={claim_id} -->\n"
+        f"CLAIM · lane={lane} · worker={worker} · branch={branch} · at={stamp} · id={claim_id}"
+    )
+
+
+def format_release_body(*, claim_id: str, reason: str) -> str:
+    return (
+        f"<!-- harness:release v1 id={claim_id} -->\n"
+        f"RELEASE · id={claim_id} · reason={reason}"
+    )
+
+
+def active_claims(issue: dict) -> list[dict]:
+    """Return active structured claims ordered by createdAt, then comment order.
+
+    Free-text mentions of CLAIM/RELEASE do not count. A release with id=* clears all
+    active claims; a release with a specific id clears only that claim.
+    """
+    active: dict[str, dict] = {}
+    order = 0
     for comment in issue.get("comments") or []:
         body = comment.get("body") or ""
-        if CLAIM_RE.search(body):
-            active = True
-        if RELEASE_RE.search(body):
-            active = False
-    return active
+        created = comment.get("createdAt") or ""
+        release = RELEASE_MARKER_RE.search(body)
+        if release:
+            released_id = release.group("id")
+            if released_id == "*":
+                active.clear()
+            else:
+                active.pop(released_id, None)
+            continue
+        claim = CLAIM_MARKER_RE.search(body)
+        if not claim:
+            continue
+        claim_id = claim.group("id")
+        active[claim_id] = {
+            "id": claim_id,
+            "createdAt": created,
+            "order": order,
+            "body": body,
+        }
+        order += 1
+    return sorted(
+        active.values(),
+        key=lambda item: (item["createdAt"], item["order"]),
+    )
+
+
+def active_claim(issue: dict) -> bool:
+    return bool(active_claims(issue))
+
+
+def claim_winner(issue: dict) -> dict | None:
+    claims = active_claims(issue)
+    return claims[0] if claims else None
 
 
 def assert_grabbable(issue: dict, lane: str) -> None:
@@ -489,10 +579,39 @@ def assert_grabbable(issue: dict, lane: str) -> None:
         if blocked in labels:
             raise IssueError(f"issue is not grabbable: {blocked}")
     if active_claim(issue):
-        raise IssueError("issue already has a CLAIM comment")
+        raise IssueError("issue already has a structured CLAIM")
+
+
+def _relinquish_lost_claim(number: int, claim_id: str) -> None:
+    run_gh(
+        [
+            "issue",
+            "comment",
+            str(number),
+            "--body",
+            format_release_body(
+                claim_id=claim_id,
+                reason="lost claim race; fail closed",
+            ),
+        ]
+    )
+    try:
+        run_gh(["issue", "edit", str(number), "--remove-label", "status:wip"])
+    except IssueError:
+        # Label may never have been added, or another worker holds it.
+        pass
 
 
 def claim_issue(taxonomy: dict, args: list[str]) -> dict:
+    """Claim an issue with comment-first, fail-closed race detection.
+
+    Protocol:
+    1. Preflight grabbable check
+    2. Post a structured CLAIM comment with a unique id (comment stream is the lock)
+    3. Re-read; earliest active structured claim wins
+    4. Losers immediately RELEASE themselves and fail closed
+    5. Winner adds status:wip and re-verifies sole ownership
+    """
     assert_flag_arguments(
         args,
         required=["--issue", "--lane", "--worker", "--branch"],
@@ -507,14 +626,43 @@ def claim_issue(taxonomy: dict, args: list[str]) -> dict:
     issue = view_issue_number(number)
     assert_grabbable(issue, lane)
     ensure_label(configured_item(taxonomy["claim_statuses"], "status:wip", "claim status"))
+
+    claim_id = str(uuid.uuid4())
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    body = f"🤖 CLAIM · {lane} · worker={worker} · branch={branch} · {stamp}"
-    run_gh(["issue", "edit", str(number), "--add-label", "status:wip"])
+    body = format_claim_body(
+        claim_id=claim_id,
+        lane=lane,
+        worker=worker,
+        branch=branch,
+        stamp=stamp,
+    )
+    # Comment first so concurrent claimers share one ordered lock stream.
     run_gh(["issue", "comment", str(number), "--body", body])
+    after_comment = view_issue_number(number)
+    winner = claim_winner(after_comment)
+    if winner is None or winner["id"] != claim_id:
+        _relinquish_lost_claim(number, claim_id)
+        raise IssueError(
+            f"issue {number} claim race lost; another structured CLAIM is active"
+        )
+
+    run_gh(["issue", "edit", str(number), "--add-label", "status:wip"])
     claimed = view_issue_number(number)
-    if "status:wip" not in label_name_set(claimed) or not active_claim(claimed):
+    winner = claim_winner(claimed)
+    if (
+        "status:wip" not in label_name_set(claimed)
+        or winner is None
+        or winner["id"] != claim_id
+        or len(active_claims(claimed)) != 1
+    ):
+        _relinquish_lost_claim(number, claim_id)
         raise IssueError(f"issue {number} failed claim postcondition verification")
-    return {"number": number, "url": claimed.get("url"), "claim": body}
+    return {
+        "number": number,
+        "url": claimed.get("url"),
+        "claim": body,
+        "claim_id": claim_id,
+    }
 
 
 def release_issue(taxonomy: dict, args: list[str]) -> dict:
@@ -528,6 +676,9 @@ def release_issue(taxonomy: dict, args: list[str]) -> dict:
         REPOSITORY_ROOT, argument_value(args, "--reason-file"), "release reason file"
     )
     ensure_label(configured_item(taxonomy["concerns"], "blocked", "issue concern"))
+    reason_text = reason.read_text(encoding="utf-8").strip()
+    body = format_release_body(claim_id="*", reason=reason_text)
+    run_gh(["issue", "comment", str(number), "--body", body])
     run_gh(
         [
             "issue",
@@ -539,9 +690,10 @@ def release_issue(taxonomy: dict, args: list[str]) -> dict:
             "blocked",
         ]
     )
-    body = f"🤖 RELEASE · Reason: {reason.read_text(encoding='utf-8').strip()}"
-    run_gh(["issue", "comment", str(number), "--body", body])
-    return {"number": number, "released": True}
+    released = view_issue_number(number)
+    if active_claim(released) or "status:wip" in label_name_set(released):
+        raise IssueError(f"issue {number} failed release postcondition verification")
+    return {"number": number, "released": True, "url": released.get("url")}
 
 
 def mark_in_review(taxonomy: dict, args: list[str]) -> dict:

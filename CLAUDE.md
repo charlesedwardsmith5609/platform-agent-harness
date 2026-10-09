@@ -145,9 +145,8 @@ Load the relevant skills before doing work in that area. Skills are in `.github/
 | Task | Skills to read |
 |---|---|
 | Any code/config change | `coding/platform-engineering.md` + `coding/security-hardening.md` |
-| Kubernetes/compute work | `coding/kubernetes.md` |
+| Compute / Kubernetes / Terraform | `coding/platform-engineering.md` + `coding/security-hardening.md` (lane-specific skills TBD) |
 | Observability/SLO work | `coding/observability.md` |
-| Terraform/IaC work | `coding/terraform.md` |
 | Filing or triaging issues | `workflow/issue-triage.md` + `setup/wrapper-catalog.md` |
 | Multi-agent parallel work | `workflow/multi-agent-coordination.md` |
 | PR review | `workflow/code-review-agent.md` |
@@ -188,8 +187,10 @@ python setup/repo_issue.py claim \
   --branch issue/<n>-<slug>
 ```
 
-The wrapper adds `status:wip` and posts the timestamped CLAIM comment. An issue is grabbable iff:
-open, correct `lane:*`, not `status:wip`/`status:in-review`/`blocked`, no open CLAIM comment.
+The wrapper posts a structured CLAIM comment first (unique id), re-reads to elect the earliest
+active claim, then adds `status:wip`. Losers fail closed and RELEASE themselves. An issue is
+grabbable iff: open, correct `lane:*`, not `status:wip`/`status:in-review`/`blocked`, no active
+structured CLAIM marker.
 
 ### Worker loop
 
@@ -212,7 +213,7 @@ open, correct `lane:*`, not `status:wip`/`status:in-review`/`blocked`, no open C
 3. For meaningful code changes: run the competing-model review (see `workflow/code-review-agent.md`)
 4. Merge: `gh pr merge <n> --squash --delete-branch`
 5. Confirm issue auto-closed; strip `status:*` labels
-6. Serialize `🔴` (human-visual / high-blast-radius) work — don't let multiple foundation or networking changes land faster than the human can review
+6. Serialize human-acceptance / high-blast-radius work — don't let multiple foundation or networking changes land faster than the human can review
 
 ---
 
@@ -239,6 +240,6 @@ open, correct `lane:*`, not `status:wip`/`status:in-review`/`blocked`, no open C
 
 ## Status reporting
 
-After each meaningful milestone (PR opened, PR merged, incident resolved), emit a brief status event.
-See `playbooks/status-reporting.md` for format. Status lives on the issue and in the weekly summary —
-not in hidden conversation.
+After each meaningful milestone (PR opened, PR merged, incident resolved), emit a brief status event
+on the issue (what changed, blast radius, next risk). Keep status on issues/PRs — not in hidden
+conversation. Optional weekly rollups can be added later; there is no separate status playbook yet.
