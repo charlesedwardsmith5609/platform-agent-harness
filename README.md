@@ -69,6 +69,7 @@ docs/
     permissions-and-security.md    # Allowlist and wrapper rules
     project-board.md               # Optional GitHub Project lane sync
     claim-concurrency-drill.md     # Live fail-closed claim drill
+    multi-repo-rollout.md          # Install harness into consumer infra repos
   test-scenarios/
     pending.md                     # Validation scenarios awaiting human/integration testing
     archive/                       # Confirmed scenarios (moved here after validation)
