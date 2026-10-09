@@ -22,17 +22,22 @@ Adoption on a real infra repo has not started yet.
 3. **Phase 3 reliability** — done (#9).
 4. **Phase 4 scale** — done (#12 multi-repo rollout guide + sync tool).
 5. **Adoption kit** — trial-install guide + Windows `.ps1` launchers in place.
+6. **Hire-bar hardening** — `doctor`, claim input validation, optional audit telemetry, CI
+   concurrency/cache, MIT LICENSE (this branch).
 
 ## Backlog (later / optional)
 
 - Optional weekly status rollup
 - Org-wide taxonomy federation across many fleets
+- Optional OTLP exporter when consumers already run an OTel collector (audit JSONL is enough for now)
 
 ## Security follow-ups
 
 - **#16** — Agent allowlist hardened: no `python:*` / raw `gh issue:*` / auto `git push`; write
   scoped to repo root; sync requires `--force`; body/rationale secret heuristics; project board
   token validation.
+- Claim `--worker` / `--branch` reject newlines and path escapes so CLAIM comments cannot smuggle
+  harness markers. OpenAI/Anthropic key shapes added to body secret heuristics.
 
 ## Trial notes / friction
 

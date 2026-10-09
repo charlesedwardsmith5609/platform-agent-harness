@@ -24,8 +24,11 @@ from .taxonomy import (
     configured_item,
     ignored_issue_file,
     positive_issue_number,
+    validate_claim_branch,
+    validate_claim_worker,
     validate_title,
 )
+from .telemetry import emit_event
 
 CLAIM_MARKER_RE = re.compile(
     r"<!--\s*harness:claim\s+v1\s+id=(?P<id>[0-9a-fA-F-]{36})\s*-->"
@@ -283,10 +286,8 @@ def claim_issue(taxonomy: dict, args: list[str]) -> dict:
     )
     number = positive_issue_number(argument_value(args, "--issue"))
     lane = configured_item(taxonomy["lanes"], argument_value(args, "--lane"), "issue lane")["name"]
-    worker = argument_value(args, "--worker")
-    branch = argument_value(args, "--branch")
-    if not worker or not branch:
-        raise IssueError("claim requires --worker and --branch")
+    worker = validate_claim_worker(argument_value(args, "--worker"))
+    branch = validate_claim_branch(argument_value(args, "--branch"))
     issue = view_issue_number(number)
     assert_grabbable(issue, lane)
     ensure_label(configured_item(taxonomy["claim_statuses"], "status:wip", "claim status"))
@@ -305,6 +306,14 @@ def claim_issue(taxonomy: dict, args: list[str]) -> dict:
     winner = claim_winner(after_comment)
     if winner is None or winner["id"] != claim_id:
         _relinquish_lost_claim(number, claim_id)
+        emit_event(
+            "claim.race_lost",
+            issue=number,
+            lane=lane,
+            worker=worker,
+            claim_id=claim_id,
+            winner_id=(winner or {}).get("id"),
+        )
         raise IssueError(
             f"issue {number} claim race lost; another structured CLAIM is active"
         )
@@ -319,7 +328,22 @@ def claim_issue(taxonomy: dict, args: list[str]) -> dict:
         or len(active_claims(claimed)) != 1
     ):
         _relinquish_lost_claim(number, claim_id)
+        emit_event(
+            "claim.postcondition_failed",
+            issue=number,
+            lane=lane,
+            worker=worker,
+            claim_id=claim_id,
+        )
         raise IssueError(f"issue {number} failed claim postcondition verification")
+    emit_event(
+        "claim.won",
+        issue=number,
+        lane=lane,
+        worker=worker,
+        branch=branch,
+        claim_id=claim_id,
+    )
     return {
         "number": number,
         "url": claimed.get("url"),

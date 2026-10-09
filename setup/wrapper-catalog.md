@@ -24,7 +24,7 @@ Run one bare executable per tool call. Do not chain with `&&`, pipes, or `cd`.
 
 | Wrapper | Operations | Contract |
 |---|---|---|
-| `setup/repo_issue.py` | `create`, `list`, `view`, `classify`, `link-child`, `unlink-child`, `claim`, `release`, `in-review` | Taxonomy-bound GitHub issue lifecycle (`setup/platform_harness/`). `claim` is comment-first and fail-closed on races. Do not substitute raw `gh issue` for these operations. |
+| `setup/repo_issue.py` | `create`, `list`, `view`, `classify`, `link-child`, `unlink-child`, `claim`, `release`, `in-review`, `doctor` | Taxonomy-bound GitHub issue lifecycle (`setup/platform_harness/`). `claim` is comment-first and fail-closed on races. `doctor [--offline]` checks taxonomy, sync paths, and optional `gh` auth. Do not substitute raw `gh issue` for these operations. |
 
 ### Command shapes
 
@@ -41,12 +41,17 @@ python setup/repo_issue.py unlink-child --parent <number> --child <number>
 python setup/repo_issue.py claim --issue <number> --lane <lane> --worker <handle> --branch <branch>
 python setup/repo_issue.py release --issue <number> --mode abandon|blocked --reason-file <ignored.rationale.local.md>
 python setup/repo_issue.py in-review --issue <number>
+python setup/repo_issue.py doctor [--offline]
 ```
 
 Creation leaves milestone empty (untriaged). Classification requires a configured milestone when
 `setup/project-taxonomy.json` lists milestones. Classification replaces only taxonomy-owned type,
 priority, concern, and lane labels; claim-status and unrelated labels stay intact. Parent/child
 hierarchy is independent of issue type.
+
+Claim `--worker` / `--branch` reject whitespace and newlines so CLAIM comments cannot smuggle
+extra harness markers. Structured telemetry is optional: set `HARNESS_TELEMETRY=1` (JSON lines on
+stderr) and/or `AGENT_AUDIT_LOG=<path>` (append JSONL).
 
 Body and rationale files must be physical, repository-local files ignored by Git (use the
 `*.issue-body.local.md` and `*.rationale.local.md` patterns).

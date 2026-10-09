@@ -47,6 +47,7 @@ DEFAULT_PATHS = [
     "tests/test_repo_issue.py",
     "tests/test_issue_mutations.py",
     "pyproject.toml",
+    "LICENSE",
     ".gitignore",
 ]
 

@@ -19,6 +19,8 @@ SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("GitHub fine-grained PAT", re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b")),
     ("AWS access key id", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
     ("Slack token", re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b")),
+    ("OpenAI API key", re.compile(r"\bsk-[A-Za-z0-9]{20,}\b")),
+    ("Anthropic API key", re.compile(r"\bsk-ant-[A-Za-z0-9_-]{20,}\b")),
     (
         "assignment-style secret",
         re.compile(
@@ -26,6 +28,9 @@ SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
         ),
     ),
 )
+
+WORKER_RE = re.compile(r"^[A-Za-z0-9._@/-]{1,64}$")
+BRANCH_RE = re.compile(r"^[A-Za-z0-9._/-]{1,128}$")
 
 
 def reject_secret_content(content: str, description: str) -> None:
@@ -175,6 +180,24 @@ def validate_title(title: str | None) -> str:
     if not isinstance(title, str) or not TITLE_RE.match(title):
         raise IssueError("issue title must be 1-120 printable characters")
     return title
+
+
+def validate_claim_worker(worker: str | None) -> str:
+    if not isinstance(worker, str) or not WORKER_RE.match(worker):
+        raise IssueError(
+            "claim --worker must be 1-64 chars of [A-Za-z0-9._@/-] (no whitespace or newlines)"
+        )
+    return worker
+
+
+def validate_claim_branch(branch: str | None) -> str:
+    if not isinstance(branch, str) or not BRANCH_RE.match(branch):
+        raise IssueError(
+            "claim --branch must be 1-128 chars of [A-Za-z0-9._/-] (no whitespace or newlines)"
+        )
+    if ".." in branch or branch.startswith("/"):
+        raise IssueError("claim --branch must not contain '..' or start with '/'")
+    return branch
 
 
 def ignored_issue_file(repository_root: Path, relpath: str | None, description: str) -> Path:

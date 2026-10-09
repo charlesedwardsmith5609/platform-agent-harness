@@ -154,7 +154,8 @@ Load the relevant skills before doing work in that area. Skills are in `.github/
 ## Agent workflows
 
 Consult `setup/wrapper-catalog.md` before using GitHub issue commands. Issue create, list, view,
-classify, hierarchy, claim, release, and in-review go through `python setup/repo_issue.py`.
+classify, hierarchy, claim, release, in-review, and doctor go through `python setup/repo_issue.py`.
+Optional audit telemetry: `HARNESS_TELEMETRY=1` and/or `AGENT_AUDIT_LOG=<path>`.
 
 ### Filing a new issue
 

@@ -5,7 +5,9 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 
+from .doctor import run_doctor
 from .errors import IssueError
 from .issue_ops import (
     change_child_relation,
@@ -18,6 +20,7 @@ from .issue_ops import (
     view_issue,
 )
 from .taxonomy import load_taxonomy
+from .telemetry import emit_event
 
 COMMANDS = (
     "create",
@@ -29,6 +32,7 @@ COMMANDS = (
     "claim",
     "release",
     "in-review",
+    "doctor",
 )
 
 
@@ -99,12 +103,21 @@ def build_parser() -> argparse.ArgumentParser:
     review = sub.add_parser("in-review", help="Move status:wip → status:in-review")
     review.add_argument("--issue", required=True)
 
+    doctor = sub.add_parser("doctor", help="Check taxonomy, sync paths, and optional gh auth")
+    doctor.add_argument(
+        "--offline",
+        action="store_true",
+        help="Skip gh CLI / auth probes (CI and air-gapped checks)",
+    )
+
     return parser
 
 
 def dispatch_namespace(namespace: argparse.Namespace) -> object:
-    taxonomy = load_taxonomy()
     command = namespace.command
+    if command == "doctor":
+        return run_doctor(probe_github=not bool(getattr(namespace, "offline", False)))
+    taxonomy = load_taxonomy()
     if command == "create":
         return create_issue(
             taxonomy,
@@ -167,13 +180,28 @@ def dispatch(command: str, args: list[str]) -> object:
 
 
 def main(argv: list[str] | None = None) -> int:
+    started = time.monotonic()
+    command = None
     try:
         parser = build_parser()
         namespace = parser.parse_args(argv)
+        command = namespace.command
         result = dispatch_namespace(namespace)
         sys.stdout.write(f"{json.dumps(result, indent=2)}\n")
+        duration_ms = int((time.monotonic() - started) * 1000)
+        emit_event("command.ok", command=command, duration_ms=duration_ms)
+        if command == "doctor" and isinstance(result, dict) and not result.get("ok"):
+            return 1
         return 0
     except IssueError as error:
+        duration_ms = int((time.monotonic() - started) * 1000)
+        emit_event(
+            "command.error",
+            command=command,
+            duration_ms=duration_ms,
+            error_type="IssueError",
+            error=str(error)[:500],
+        )
         sys.stderr.write(f"{error}\n")
         return 1
 
