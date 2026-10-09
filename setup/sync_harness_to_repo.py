@@ -30,6 +30,7 @@ DEFAULT_PATHS = [
     "setup/wrapper-catalog.md",
     "setup/permissions-setup.md",
     "setup/claim_concurrency_drill.py",
+    "setup/sync_harness_to_repo.py",
     "docs/guides/permissions-and-security.md",
     "docs/guides/trial-install.md",
     "docs/guides/project-board.md",
