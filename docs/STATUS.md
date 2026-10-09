@@ -20,7 +20,7 @@ Adoption on a real infra repo has not started yet.
    completed worker loop on issue #1. Harness issues #2/#5 closed.
 2. **P1 harness quality** — done.
 3. **Phase 3 reliability** — done (#9).
-4. **Phase 4 scale** — #12 multi-repo rollout guide + `sync_harness_to_repo.py`.
+4. **Phase 4 scale** — done (#12 multi-repo rollout guide + sync tool).
 5. **Adoption kit** — trial-install guide + Windows `.ps1` launchers in place.
 
 ## Backlog (later / optional)
