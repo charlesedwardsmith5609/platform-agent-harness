@@ -4,11 +4,12 @@ import unittest
 import uuid
 from pathlib import Path
 
-SETUP = Path(__file__).resolve().parents[1] / "setup"
+ROOT = Path(__file__).resolve().parents[1]
+SETUP = ROOT / "setup"
 sys.path.insert(0, str(SETUP))
 
 from apply_permissions import PLACEHOLDER, command_to_claude, load_source, materialize
-from repo_issue import (
+from platform_harness import (
     IssueError,
     active_claim,
     active_claims,

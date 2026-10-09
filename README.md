@@ -53,11 +53,13 @@ CLAUDE.md                          # Main agent instructions (read this first)
 setup/
   wrapper-catalog.md               # Approved command surfaces (read before raw gh/git)
   project-taxonomy.json            # Authoritative labels, lanes, milestones
-  repo_issue.py                    # Taxonomy-bound issue lifecycle
+  platform_harness/                # Packaged issue lifecycle (remote/ops/cli)
+  repo_issue.py                    # Thin CLI shim → platform_harness
   create_labels.py                 # Create/reconcile taxonomy labels
   agent-permissions.json           # Portable permission source (placeholder root)
   apply_permissions.py             # Materialize permissions into gitignored local files
   create-labels.sh                 # Bash launcher for create_labels.py
+pyproject.toml                     # Installable package + repo-issue console script
 docs/
   STATUS.md                        # Current state, active work, milestone progress
   guides/

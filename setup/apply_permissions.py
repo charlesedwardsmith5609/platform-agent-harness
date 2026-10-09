@@ -12,7 +12,7 @@ import json
 import sys
 from pathlib import Path
 
-from repo_issue import IssueError, REPOSITORY_ROOT, run_git
+from platform_harness import IssueError, REPOSITORY_ROOT, run_git
 
 PLACEHOLDER = "REPLACE_WITH_YOUR_REPO_GIT_ROOT"
 SOURCE = Path(__file__).resolve().parent / "agent-permissions.json"
