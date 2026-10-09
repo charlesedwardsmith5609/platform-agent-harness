@@ -18,7 +18,9 @@ from repo_issue import (
     format_claim_body,
     format_release_body,
     load_taxonomy,
+    normalize_issue,
     set_command_runners,
+    sub_issue_nodes,
     validate_title,
 )
 
@@ -104,6 +106,32 @@ class TaxonomyTests(unittest.TestCase):
             validate_title("OIDC trust policy missing sub condition"),
             "OIDC trust policy missing sub condition",
         )
+
+
+class SubIssuesShapeTests(unittest.TestCase):
+    def test_sub_issues_object_payload(self):
+        self.assertEqual(sub_issue_nodes({"nodes": [], "totalCount": 0}), [])
+        nodes = sub_issue_nodes(
+            {"nodes": [{"number": 3, "title": "child", "state": "OPEN", "url": "u"}], "totalCount": 1}
+        )
+        self.assertEqual(nodes[0]["number"], 3)
+
+    def test_normalize_issue_accepts_sub_issues_object(self):
+        issue = normalize_issue(
+            {
+                "number": 2,
+                "title": "t",
+                "body": "b",
+                "state": "OPEN",
+                "labels": [],
+                "comments": [],
+                "parent": None,
+                "subIssues": {"nodes": [], "totalCount": 0},
+                "url": "https://example.test/issues/2",
+            }
+        )
+        self.assertEqual(issue["children"], [])
+        self.assertIsNone(issue["parent"])
 
 
 class PermissionSourceTests(unittest.TestCase):
