@@ -15,6 +15,7 @@ from .github_remote import (
     list_issue_records,
     view_issue_number,
 )
+from .project_sync import sync_project_lane
 from .runtime import REPOSITORY_ROOT, run_gh
 from .taxonomy import (
     argument_value,
@@ -60,12 +61,19 @@ def create_issue(taxonomy: dict, args: list[str]) -> dict:
         raise IssueError(
             f"created issue {number} failed taxonomy postcondition verification; inspect {created.get('url')}"
         )
+    project = sync_project_lane(
+        taxonomy,
+        issue_number=number,
+        lane=classification["lane"],
+        issue_url=str(created.get("url")),
+    )
     return {
         "number": number,
         "url": created.get("url"),
         "title": title,
         "labels": [label["name"] for label in classification["labels"]],
         "milestone": classification["milestone"],
+        "project": project,
     }
 
 
@@ -120,11 +128,18 @@ def classify_issue(taxonomy: dict, args: list[str]) -> dict:
             f"inspect {classified.get('url')}"
         )
     run_gh(["issue", "comment", str(number), "--body", rationale.read_text(encoding="utf-8")])
+    project = sync_project_lane(
+        taxonomy,
+        issue_number=number,
+        lane=classification["lane"],
+        issue_url=str(classified.get("url")),
+    )
     return {
         "number": number,
         "url": classified.get("url"),
         "labels": [label["name"] for label in classification["labels"]],
         "milestone": classification["milestone"],
+        "project": project,
     }
 
 

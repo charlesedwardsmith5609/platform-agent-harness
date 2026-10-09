@@ -67,6 +67,8 @@ docs/
   guides/
     trial-install.md               # Dogfood / first-repo trial checklist
     permissions-and-security.md    # Allowlist and wrapper rules
+    project-board.md               # Optional GitHub Project lane sync
+    claim-concurrency-drill.md     # Live fail-closed claim drill
   test-scenarios/
     pending.md                     # Validation scenarios awaiting human/integration testing
     archive/                       # Confirmed scenarios (moved here after validation)
