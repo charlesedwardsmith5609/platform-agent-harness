@@ -277,7 +277,7 @@ class MutationTests(unittest.TestCase):
             taxonomy,
             issue_number=3,
             lane="lane:observability",
-            issue_url="https://example.test/issues/3",
+            issue_url="https://github.com/acme/platform/issues/3",
         )
         self.assertTrue(result["synced"])
         self.assertEqual(len(fake.project_calls), 2)
@@ -289,6 +289,33 @@ class MutationTests(unittest.TestCase):
         taxonomy["project_board"] = {"owner": "acme", "number": 1}
         with self.assertRaisesRegex(IssueError, "missing required keys"):
             project_board_config(taxonomy)
+
+    def test_project_board_rejects_unsafe_owner(self):
+        taxonomy = load_taxonomy()
+        taxonomy["project_board"] = {
+            "owner": "acme; rm -rf /",
+            "number": 7,
+            "lane_field": "Lane",
+            "lane_option_map": {"lane:observability": "Observability"},
+        }
+        with self.assertRaisesRegex(IssueError, "project_board.owner"):
+            project_board_config(taxonomy)
+
+    def test_project_sync_rejects_non_github_url(self):
+        taxonomy = load_taxonomy()
+        taxonomy["project_board"] = {
+            "owner": "acme",
+            "number": 7,
+            "lane_field": "Lane",
+            "lane_option_map": {"lane:observability": "Observability"},
+        }
+        with self.assertRaisesRegex(IssueError, "issue URL"):
+            sync_project_lane(
+                taxonomy,
+                issue_number=3,
+                lane="lane:observability",
+                issue_url="https://example.test/issues/3",
+            )
 
 
 if __name__ == "__main__":

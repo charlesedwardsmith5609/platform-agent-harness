@@ -6,11 +6,12 @@
           "kind": "commands",
           "commandIdentifiers": [
             "gh auth status",
-            "gh issue:*",
-            "gh label:*",
-            "gh milestone:*",
-            "gh pr:*",
-            "gh project:*",
+            "gh pr create:*",
+            "gh pr view:*",
+            "gh pr status:*",
+            "gh pr checks:*",
+            "gh pr diff:*",
+            "gh pr list:*",
             "git add:*",
             "git branch:*",
             "git commit:*",
@@ -19,8 +20,6 @@
             "git log:*",
             "git ls-files:*",
             "git pull:*",
-            "git push:*",
-            "git rebase:*",
             "git remote:*",
             "git rev-parse:*",
             "git show:*",
@@ -28,19 +27,27 @@
             "git status:*",
             "git switch:*",
             "git worktree:*",
-            "python:*",
-            "python3:*",
-            "pytest:*",
-            "terraform:*",
-            "tflint:*",
-            "make:*"
+            "python setup/apply_permissions.py:*",
+            "python setup/claim_concurrency_drill.py:*",
+            "python setup/create_labels.py:*",
+            "python setup/repo_issue.py:*",
+            "python setup/sync_harness_to_repo.py:*",
+            "python -m unittest:*",
+            "python3 setup/apply_permissions.py:*",
+            "python3 setup/claim_concurrency_drill.py:*",
+            "python3 setup/create_labels.py:*",
+            "python3 setup/repo_issue.py:*",
+            "python3 setup/sync_harness_to_repo.py:*",
+            "python3 -m unittest:*"
           ]
         },
         {
           "kind": "write"
         }
       ],
-      "allowed_directories": []
+      "allowed_directories": [
+        "REPLACE_WITH_YOUR_REPO_GIT_ROOT"
+      ]
     }
   }
 }

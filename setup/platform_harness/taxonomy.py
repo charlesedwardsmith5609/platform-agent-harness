@@ -12,6 +12,30 @@ from .runtime import TAXONOMY_PATH, run_git
 TITLE_RE = re.compile(r"^[^\x00-\x1f]{1,120}$")
 POSITIVE_INT_RE = re.compile(r"^[1-9]\d*$")
 
+# Fail closed on common secret shapes before posting body/rationale to GitHub.
+SECRET_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("PEM private key", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----")),
+    ("GitHub token", re.compile(r"\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9_]{20,}\b")),
+    ("GitHub fine-grained PAT", re.compile(r"\bgithub_pat_[A-Za-z0-9_]{20,}\b")),
+    ("AWS access key id", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
+    ("Slack token", re.compile(r"\bxox[baprs]-[A-Za-z0-9-]{10,}\b")),
+    (
+        "assignment-style secret",
+        re.compile(
+            r"(?i)\b(?:api[_-]?key|secret|password|token|gh_token|aws_secret_access_key)\s*[:=]\s*\S{12,}"
+        ),
+    ),
+)
+
+
+def reject_secret_content(content: str, description: str) -> None:
+    for label, pattern in SECRET_PATTERNS:
+        if pattern.search(content):
+            raise IssueError(
+                f"{description} looks like it contains a {label}; "
+                "remove secrets before posting to GitHub"
+            )
+
 
 def load_taxonomy(path: Path = TAXONOMY_PATH) -> dict:
     taxonomy = json.loads(path.read_text(encoding="utf-8"))
@@ -171,6 +195,7 @@ def ignored_issue_file(repository_root: Path, relpath: str | None, description: 
     content = path.read_text(encoding="utf-8")
     if not content.strip() or len(content) > 65_536 or "\0" in content:
         raise IssueError(f"{description} must contain 1-65536 characters and no NUL bytes")
+    reject_secret_content(content, description)
     return path
 
 

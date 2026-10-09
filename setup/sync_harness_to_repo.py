@@ -4,6 +4,8 @@
 Does not overwrite consumer CLAUDE.md / docs/STATUS.md by default — those stay
 repo-specific. Use --include-identity to force-refresh them from this harness
 (usually wrong for real orgs; fine for sandbox resets).
+
+Destructive directory replace requires --force. Prefer --dry-run first.
 """
 
 from __future__ import annotations
@@ -51,14 +53,42 @@ IDENTITY_PATHS = [
 ]
 
 
-def copy_path(src_root: Path, dst_root: Path, rel: str) -> str:
-    src = src_root / rel
-    dst = dst_root / rel
+def validate_target(target: Path) -> Path:
+    resolved = target.resolve()
+    if resolved == HARNESS_ROOT.resolve():
+        raise SystemExit("refusing to sync into the harness repository itself")
+    git_dir = resolved / ".git"
+    if not git_dir.exists():
+        raise SystemExit(f"target is not a git checkout: {resolved}")
+    # Require a real .git directory or file (worktree) — not a random folder named .git.
+    if not (git_dir.is_dir() or git_dir.is_file()):
+        raise SystemExit(f"target .git is not a directory or worktree file: {resolved}")
+    return resolved
+
+
+def validate_rel(rel: str) -> None:
+    if not rel or rel.startswith("/") or rel.startswith("\\") or ".." in Path(rel).parts:
+        raise SystemExit(f"refusing path that escapes harness root: {rel}")
+
+
+def copy_path(src_root: Path, dst_root: Path, rel: str, *, force: bool) -> str:
+    validate_rel(rel)
+    src = (src_root / rel).resolve()
+    dst = (dst_root / rel).resolve()
+    try:
+        src.relative_to(src_root.resolve())
+        dst.relative_to(dst_root.resolve())
+    except ValueError as exc:
+        raise SystemExit(f"path escapes repository root: {rel}") from exc
     if not src.exists():
         raise FileNotFoundError(f"missing harness path: {rel}")
     dst.parent.mkdir(parents=True, exist_ok=True)
     if src.is_dir():
         if dst.exists():
+            if not force:
+                raise SystemExit(
+                    f"refusing to replace existing directory without --force: {rel}"
+                )
             shutil.rmtree(dst)
         shutil.copytree(src, dst)
         return f"dir:{rel}"
@@ -78,23 +108,34 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Also overwrite CLAUDE.md and docs/STATUS.md (dangerous for real orgs)",
     )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Allow replacing existing destination directories (rmtree)",
+    )
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)
-    target = Path(args.target).resolve()
-    if not (target / ".git").exists():
-        print(f"target is not a git checkout: {target}", file=sys.stderr)
-        return 1
+    target = validate_target(Path(args.target))
     paths = list(DEFAULT_PATHS)
     if args.include_identity:
         paths.extend(IDENTITY_PATHS)
-    planned = []
     for rel in paths:
-        planned.append(rel)
+        validate_rel(rel)
     if args.dry_run:
-        json.dump({"target": str(target), "would_copy": planned}, sys.stdout, indent=2)
+        json.dump(
+            {
+                "target": str(target),
+                "would_copy": paths,
+                "force": bool(args.force),
+            },
+            sys.stdout,
+            indent=2,
+        )
         sys.stdout.write("\n")
         return 0
-    copied = [copy_path(HARNESS_ROOT, target, rel) for rel in paths]
+    copied = [
+        copy_path(HARNESS_ROOT, target, rel, force=bool(args.force)) for rel in paths
+    ]
     json.dump({"target": str(target), "copied": copied}, sys.stdout, indent=2)
     sys.stdout.write("\n")
     return 0
