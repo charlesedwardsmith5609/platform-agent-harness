@@ -1,7 +1,0 @@
-Add argparse CLI, batched list/label cache, and release modes.
-
-Finish remaining P1 DX items from the hiring review: parse commands with
-argparse, list issues in one gh call instead of N+1 views, memoize label
-list lookups per process, and require release --mode abandon|blocked so
-abandon no longer forces the blocked label. Add a PowerShell create-labels
-launcher for Windows trial machines.

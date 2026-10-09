@@ -1,6 +1,7 @@
 # Local issue bodies and triage rationale — never commit these.
 *.issue-body.local.md
 *.rationale.local.md
+commit-message.local.txt
 
 # Machine-local permission materialization (absolute paths).
 .claude/settings.local.json
