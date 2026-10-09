@@ -12,6 +12,7 @@ from .github_remote import (
     ensure_classification_labels,
     ensure_label,
     label_name_set,
+    list_issue_records,
     view_issue_number,
 )
 from .runtime import REPOSITORY_ROOT, run_gh
@@ -21,7 +22,6 @@ from .taxonomy import (
     classification_from_arguments,
     configured_item,
     ignored_issue_file,
-    parse_json,
     positive_issue_number,
     validate_title,
 )
@@ -135,11 +135,7 @@ def list_issues(args: list[str]) -> list[dict]:
     state = argument_value(args, "--state") or "open"
     if state not in {"open", "closed", "all"}:
         raise IssueError("issue state must be open, closed, or all")
-    issues = parse_json(
-        run_gh(["issue", "list", "--state", state, "--limit", "1000", "--json", "number"]),
-        "issue list",
-    )
-    return [view_issue_number(item["number"]) for item in issues]
+    return list_issue_records(state)
 
 
 def view_issue(args: list[str]) -> dict:
@@ -320,32 +316,39 @@ def claim_issue(taxonomy: dict, args: list[str]) -> dict:
 def release_issue(taxonomy: dict, args: list[str]) -> dict:
     assert_flag_arguments(
         args,
-        required=["--issue", "--reason-file"],
-        usage="usage: release --issue <number> --reason-file <ignored-file>",
+        required=["--issue", "--reason-file", "--mode"],
+        usage="usage: release --issue <number> --mode abandon|blocked --reason-file <ignored-file>",
     )
     number = positive_issue_number(argument_value(args, "--issue"))
+    mode = (argument_value(args, "--mode") or "").lower()
+    if mode not in {"abandon", "blocked"}:
+        raise IssueError("release --mode must be abandon or blocked")
     reason = ignored_issue_file(
         REPOSITORY_ROOT, argument_value(args, "--reason-file"), "release reason file"
     )
-    ensure_label(configured_item(taxonomy["concerns"], "blocked", "issue concern"))
     reason_text = reason.read_text(encoding="utf-8").strip()
-    body = format_release_body(claim_id="*", reason=reason_text)
+    body = format_release_body(claim_id="*", reason=f"{mode}: {reason_text}")
     run_gh(["issue", "comment", str(number), "--body", body])
-    run_gh(
-        [
-            "issue",
-            "edit",
-            str(number),
-            "--remove-label",
-            "status:wip",
-            "--add-label",
-            "blocked",
-        ]
-    )
+    edit = ["issue", "edit", str(number), "--remove-label", "status:wip"]
+    if mode == "blocked":
+        ensure_label(configured_item(taxonomy["concerns"], "blocked", "issue concern"))
+        edit.extend(["--add-label", "blocked"])
+    run_gh(edit)
     released = view_issue_number(number)
-    if active_claim(released) or "status:wip" in label_name_set(released):
+    labels = label_name_set(released)
+    if active_claim(released) or "status:wip" in labels:
         raise IssueError(f"issue {number} failed release postcondition verification")
-    return {"number": number, "released": True, "url": released.get("url")}
+    if mode == "blocked" and "blocked" not in labels:
+        raise IssueError(f"issue {number} failed blocked release postcondition verification")
+    if mode == "abandon" and "blocked" in labels:
+        # Abandon must not add blocked; pre-existing blocked is allowed to remain.
+        pass
+    return {
+        "number": number,
+        "released": True,
+        "mode": mode,
+        "url": released.get("url"),
+    }
 
 
 def mark_in_review(taxonomy: dict, args: list[str]) -> dict:

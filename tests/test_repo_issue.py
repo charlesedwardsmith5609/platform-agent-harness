@@ -24,6 +24,9 @@ from platform_harness import (
     sub_issue_nodes,
     validate_title,
 )
+from platform_harness.cli import build_parser
+from platform_harness.issue_ops import list_issues, release_issue
+from platform_harness.runtime import REPOSITORY_ROOT
 
 
 class TaxonomyTests(unittest.TestCase):
@@ -240,8 +243,9 @@ class ClaimMarkerTests(unittest.TestCase):
 class FakeGitHub:
     """Minimal in-memory gh issue surface for claim race tests."""
 
-    def __init__(self, issue: dict):
+    def __init__(self, issue: dict, *, catalog: list[dict] | None = None):
         self.issue = issue
+        self.catalog = catalog or [issue]
         self.labels = {
             "status:wip": {
                 "name": "status:wip",
@@ -255,9 +259,13 @@ class FakeGitHub:
             },
         }
         self.comment_clock = 0
+        self.label_list_calls = 0
+        self.issue_list_calls = 0
+        self.issue_view_calls = 0
 
     def __call__(self, args: list[str]) -> str:
         if args[:2] == ["label", "list"]:
+            self.label_list_calls += 1
             return json.dumps(list(self.labels.values()))
         if args[:2] == ["label", "create"]:
             name = args[2]
@@ -267,7 +275,11 @@ class FakeGitHub:
                 "description": "",
             }
             return ""
+        if args[:2] == ["issue", "list"]:
+            self.issue_list_calls += 1
+            return json.dumps(self.catalog)
         if args[:2] == ["issue", "view"]:
+            self.issue_view_calls += 1
             return json.dumps(self.issue)
         if args[:2] == ["issue", "comment"]:
             body_idx = args.index("--body")
@@ -423,6 +435,135 @@ class ClaimRaceTests(unittest.TestCase):
         ]
         self.assertEqual(len(releases), 1)
         self.assertEqual(claim_winner(issue)["body"].count("worker=bob"), 1)
+
+
+class ListAndReleaseTests(unittest.TestCase):
+    def tearDown(self):
+        set_command_runners(gh=None, git=None)
+
+    def test_list_is_single_batched_call(self):
+        issue = {
+            "number": 9,
+            "title": "t",
+            "body": "b",
+            "state": "OPEN",
+            "labels": [{"name": "lane:ci-cd"}],
+            "milestone": None,
+            "assignees": [],
+            "comments": [],
+            "url": "https://example.test/issues/9",
+        }
+        fake = FakeGitHub(issue, catalog=[issue, dict(issue, number=10)])
+        set_command_runners(gh=fake)
+        result = list_issues(["--state", "open"])
+        self.assertEqual(len(result), 2)
+        self.assertEqual(fake.issue_list_calls, 1)
+        self.assertEqual(fake.issue_view_calls, 0)
+
+    def test_label_list_is_memoized_across_ensure(self):
+        fake = FakeGitHub(
+            {
+                "number": 7,
+                "title": "t",
+                "body": "b",
+                "state": "OPEN",
+                "labels": [{"name": "lane:compute"}],
+                "comments": [],
+                "url": "u",
+            }
+        )
+        set_command_runners(gh=fake)
+        taxonomy = load_taxonomy()
+        claim_issue(
+            taxonomy,
+            [
+                "--issue",
+                "7",
+                "--lane",
+                "lane:compute",
+                "--worker",
+                "alice",
+                "--branch",
+                "issue/7-a",
+            ],
+        )
+        self.assertEqual(fake.label_list_calls, 1)
+
+    def test_release_abandon_does_not_add_blocked(self):
+        reason = REPOSITORY_ROOT / "release-abandon.rationale.local.md"
+        reason.write_text("stepping away\n", encoding="utf-8")
+        issue = {
+            "number": 11,
+            "title": "t",
+            "body": "b",
+            "state": "OPEN",
+            "labels": [{"name": "lane:platform-api"}, {"name": "status:wip"}],
+            "comments": [],
+            "url": "https://example.test/issues/11",
+        }
+        fake = FakeGitHub(issue)
+        set_command_runners(gh=fake)
+        try:
+            result = release_issue(
+                load_taxonomy(),
+                [
+                    "--issue",
+                    "11",
+                    "--mode",
+                    "abandon",
+                    "--reason-file",
+                    "release-abandon.rationale.local.md",
+                ],
+            )
+            self.assertEqual(result["mode"], "abandon")
+            names = {label["name"].lower() for label in fake.issue["labels"]}
+            self.assertNotIn("status:wip", names)
+            self.assertNotIn("blocked", names)
+        finally:
+            reason.unlink(missing_ok=True)
+
+    def test_release_blocked_adds_blocked(self):
+        reason = REPOSITORY_ROOT / "release-blocked.rationale.local.md"
+        reason.write_text("waiting on dependency\n", encoding="utf-8")
+        issue = {
+            "number": 12,
+            "title": "t",
+            "body": "b",
+            "state": "OPEN",
+            "labels": [{"name": "lane:platform-api"}, {"name": "status:wip"}],
+            "comments": [],
+            "url": "https://example.test/issues/12",
+        }
+        fake = FakeGitHub(issue)
+        set_command_runners(gh=fake)
+        try:
+            result = release_issue(
+                load_taxonomy(),
+                [
+                    "--issue",
+                    "12",
+                    "--mode",
+                    "blocked",
+                    "--reason-file",
+                    "release-blocked.rationale.local.md",
+                ],
+            )
+            self.assertEqual(result["mode"], "blocked")
+            names = {label["name"].lower() for label in fake.issue["labels"]}
+            self.assertNotIn("status:wip", names)
+            self.assertIn("blocked", names)
+        finally:
+            reason.unlink(missing_ok=True)
+
+    def test_argparse_help_includes_release_mode(self):
+        parser = build_parser()
+        ns = parser.parse_args(
+            ["release", "--issue", "1", "--mode", "abandon", "--reason-file", "x.md"]
+        )
+        self.assertEqual(ns.command, "release")
+        self.assertEqual(ns.mode, "abandon")
+        with self.assertRaises(SystemExit):
+            parser.parse_args(["release", "--issue", "1", "--reason-file", "x.md"])
 
 
 if __name__ == "__main__":

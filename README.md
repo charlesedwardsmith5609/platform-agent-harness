@@ -59,6 +59,7 @@ setup/
   agent-permissions.json           # Portable permission source (placeholder root)
   apply_permissions.py             # Materialize permissions into gitignored local files
   create-labels.sh                 # Bash launcher for create_labels.py
+  create-labels.ps1                # PowerShell launcher for create_labels.py
 pyproject.toml                     # Installable package + repo-issue console script
 docs/
   STATUS.md                        # Current state, active work, milestone progress

@@ -10,6 +10,15 @@ ISSUE_JSON_FIELDS = (
     "number,title,body,state,labels,milestone,assignees,comments,parent,subIssues,url"
 )
 ISSUE_JSON_FIELDS_FALLBACK = "number,title,body,state,labels,milestone,assignees,comments,url"
+# issue list does not reliably support parent/subIssues; omit them for batch list.
+LIST_JSON_FIELDS = "number,title,body,state,labels,milestone,assignees,comments,url"
+
+_label_name_cache: set[str] | None = None
+
+
+def clear_label_cache() -> None:
+    global _label_name_cache
+    _label_name_cache = None
 
 
 def relation(issue: dict | None) -> dict | None:
@@ -88,12 +97,29 @@ def view_issue_number(number: int) -> dict:
     return normalize_issue(parse_json(raw, "issue view"))
 
 
-def ensure_label(label: dict) -> None:
+def list_issue_records(state: str) -> list[dict]:
+    """One batched gh issue list — avoids N+1 view calls for triage."""
+    raw = run_gh(
+        ["issue", "list", "--state", state, "--limit", "1000", "--json", LIST_JSON_FIELDS]
+    )
+    return [normalize_issue(item) for item in parse_json(raw, "issue list")]
+
+
+def existing_label_names() -> set[str]:
+    global _label_name_cache
+    if _label_name_cache is not None:
+        return _label_name_cache
     existing = parse_json(
         run_gh(["label", "list", "--limit", "1000", "--json", "name"]),
         "label list",
     )
-    if any(item["name"].lower() == label["name"].lower() for item in existing):
+    _label_name_cache = {item["name"].lower() for item in existing}
+    return _label_name_cache
+
+
+def ensure_label(label: dict) -> None:
+    names = existing_label_names()
+    if label["name"].lower() in names:
         return
     run_gh(
         [
@@ -106,6 +132,7 @@ def ensure_label(label: dict) -> None:
             label["description"],
         ]
     )
+    names.add(label["name"].lower())
 
 
 def ensure_classification_labels(classification: dict) -> None:
