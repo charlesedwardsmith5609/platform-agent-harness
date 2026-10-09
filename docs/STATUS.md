@@ -28,6 +28,12 @@ Adoption on a real infra repo has not started yet.
 - Optional weekly status rollup
 - Org-wide taxonomy federation across many fleets
 
+## Security follow-ups
+
+- **#16** — Agent allowlist hardened: no `python:*` / raw `gh issue:*` / auto `git push`; write
+  scoped to repo root; sync requires `--force`; body/rationale secret heuristics; project board
+  token validation.
+
 ## Trial notes / friction
 
 - `gh` was missing on the trial machine at first; install via winget before label/issue steps.

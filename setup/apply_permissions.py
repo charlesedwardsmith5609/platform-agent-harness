@@ -43,13 +43,51 @@ def command_to_claude(identifier: str) -> str:
     return f"Bash({identifier})"
 
 
+def substitute_placeholder(value, root: Path):
+    """Replace portable root placeholders with the absolute Git root."""
+    if isinstance(value, str):
+        return value.replace(PLACEHOLDER, str(root))
+    if isinstance(value, list):
+        return [substitute_placeholder(item, root) for item in value]
+    if isinstance(value, dict):
+        return {key: substitute_placeholder(item, root) for key, item in value.items()}
+    return value
+
+
 def materialize(root: Path, document: dict) -> tuple[dict, dict]:
-    entry = document["locations"][PLACEHOLDER]
+    entry = substitute_placeholder(document["locations"][PLACEHOLDER], root)
+    directories = entry.get("allowed_directories") or []
+    if not directories:
+        raise IssueError(
+            "permission source must scope allowed_directories to REPLACE_WITH_YOUR_REPO_GIT_ROOT"
+        )
+    if any(path != str(root) for path in directories):
+        raise IssueError(
+            "permission source allowed_directories must resolve only to the repository Git root"
+        )
     resolved = {"locations": {str(root): entry}}
     identifiers = []
     for approval in entry.get("tool_approvals") or []:
         if approval.get("kind") == "commands":
             identifiers.extend(approval.get("commandIdentifiers") or [])
+    banned_exact = {
+        "python:*",
+        "python3:*",
+        "git push:*",
+        "gh issue:*",
+        "gh label:*",
+        "gh milestone:*",
+        "gh project:*",
+        "gh pr merge:*",
+        "gh pr:*",
+        "gh api",
+        "gh api:*",
+    }
+    for identifier in identifiers:
+        if identifier in banned_exact:
+            raise IssueError(f"permission source must not auto-approve {identifier}")
+        if identifier.startswith(("python -c", "python3 -c", "gh api ")):
+            raise IssueError(f"permission source must not auto-approve {identifier}")
     claude = {
         "permissions": {
             "allow": [command_to_claude(item) for item in identifiers],

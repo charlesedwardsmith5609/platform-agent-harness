@@ -14,9 +14,10 @@ From the harness checkout:
 
 ```bash
 python setup/sync_harness_to_repo.py --target /path/to/consumer --dry-run
-python setup/sync_harness_to_repo.py --target /path/to/consumer
+python setup/sync_harness_to_repo.py --target /path/to/consumer --force
 ```
 
+`--force` is required when destination directories already exist (destructive replace).
 By default this **does not** overwrite consumer `CLAUDE.md` or `docs/STATUS.md`.
 Pass `--include-identity` only for sandbox resets.
 

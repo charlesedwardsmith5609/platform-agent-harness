@@ -24,6 +24,7 @@ from platform_harness import (
     sub_issue_nodes,
     validate_title,
 )
+from platform_harness.taxonomy import reject_secret_content
 from platform_harness.cli import build_parser
 from platform_harness.issue_ops import list_issues, release_issue
 from platform_harness.runtime import REPOSITORY_ROOT
@@ -145,11 +146,40 @@ class PermissionSourceTests(unittest.TestCase):
         resolved, claude = materialize(example_root, document)
         self.assertNotIn(PLACEHOLDER, json.dumps(resolved))
         self.assertIn(str(example_root), resolved["locations"])
-        self.assertIn("Bash(gh issue *)", claude["permissions"]["allow"])
+        location = resolved["locations"][str(example_root)]
+        self.assertEqual(location["allowed_directories"], [str(example_root)])
+        allow = claude["permissions"]["allow"]
+        self.assertIn("Bash(python setup/repo_issue.py *)", allow)
+        self.assertIn("Bash(gh pr create *)", allow)
+        self.assertNotIn("Bash(python *)", allow)
+        self.assertNotIn("Bash(python3 *)", allow)
+        self.assertNotIn("Bash(gh issue *)", allow)
+        self.assertNotIn("Bash(git push *)", allow)
+        self.assertNotIn("Bash(gh pr *)", allow)
         self.assertEqual(command_to_claude("gh auth status"), "Bash(gh auth status)")
         source_text = (SETUP / "agent-permissions.json").read_text(encoding="utf-8")
         self.assertIn("REPLACE_WITH_YOUR_REPO_GIT_ROOT", source_text)
+        self.assertNotIn("python:*", source_text)
+        self.assertNotIn("git push:*", source_text)
         self.assertNotIn("nme-mcp", source_text)
+
+    def test_materialize_rejects_broad_python(self):
+        document = load_source()
+        entry = document["locations"][PLACEHOLDER]
+        for approval in entry["tool_approvals"]:
+            if approval.get("kind") == "commands":
+                approval["commandIdentifiers"] = ["python:*"]
+        with self.assertRaises(IssueError):
+            materialize(Path("E:/example/platform-repo"), document)
+
+
+class SecretContentTests(unittest.TestCase):
+    def test_rejects_github_pat(self):
+        with self.assertRaises(IssueError):
+            reject_secret_content("token=ghp_abcdefghijklmnopqrstuvwxyz012345", "body")
+
+    def test_allows_normal_body(self):
+        reject_secret_content("Harden the allowlist; no secrets here.", "body")
 
 
 class ClaimMarkerTests(unittest.TestCase):
