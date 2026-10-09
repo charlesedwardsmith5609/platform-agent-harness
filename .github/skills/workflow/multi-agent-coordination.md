@@ -104,12 +104,14 @@ Free-text mentions of the word "CLAIM" do **not** count. Only harness markers do
 **Grabbable** means ALL of: open issue, correct `lane:*`, no `status:wip`, no `status:in-review`,
 no `blocked` label, no active structured CLAIM. The wrapper refuses otherwise.
 
-**Release** (if blocked or abandoning):
+**Release** (explicit mode required):
 ```bash
-python setup/repo_issue.py release --issue <n> --reason-file scratch.rationale.local.md
+python setup/repo_issue.py release --issue <n> --mode abandon --reason-file scratch.rationale.local.md
+python setup/repo_issue.py release --issue <n> --mode blocked --reason-file scratch.rationale.local.md
 ```
 
-Release posts `<!-- harness:release v1 id=* -->`, clears `status:wip`, and adds `blocked`.
+Both post `<!-- harness:release v1 id=* -->` and clear `status:wip`.
+`--mode blocked` also adds `blocked`; `--mode abandon` does not.
 
 **Status label lifecycle:**
 `(open, no status)` → `status:wip` (claimed) → `status:in-review` (PR open) → *closed on merge*

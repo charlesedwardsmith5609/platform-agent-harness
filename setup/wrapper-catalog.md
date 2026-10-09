@@ -14,6 +14,7 @@ Run one bare executable per tool call. Do not chain with `&&`, pipes, or `cd`.
 |---|---|---|
 | `setup/create_labels.py` | `[--plan] [--label name] [--reconcile]` | Plans, creates, or reconciles only labels declared by `setup/project-taxonomy.json`. |
 | `setup/create-labels.sh` | same | Bash launcher for `create_labels.py`. |
+| `setup/create-labels.ps1` | same | PowerShell launcher for `create_labels.py`. |
 | `setup/apply_permissions.py` | `[--dry-run]` | Resolves the portable permission placeholder into a gitignored local settings file. |
 
 ## Issue lifecycle
@@ -35,7 +36,7 @@ python setup/repo_issue.py classify --issue <number> --type <type> --priority <p
 python setup/repo_issue.py link-child --parent <number> --child <number>
 python setup/repo_issue.py unlink-child --parent <number> --child <number>
 python setup/repo_issue.py claim --issue <number> --lane <lane> --worker <handle> --branch <branch>
-python setup/repo_issue.py release --issue <number> --reason-file <ignored.rationale.local.md>
+python setup/repo_issue.py release --issue <number> --mode abandon|blocked --reason-file <ignored.rationale.local.md>
 python setup/repo_issue.py in-review --issue <number>
 ```
 

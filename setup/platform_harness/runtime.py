@@ -27,6 +27,10 @@ def set_command_runners(
     global _gh_runner, _git_runner
     _gh_runner = gh
     _git_runner = git
+    # Label memoization must not leak across fake-gh tests.
+    from . import github_remote
+
+    github_remote.clear_label_cache()
 
 
 def gh_environment() -> dict[str, str]:
