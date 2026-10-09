@@ -154,8 +154,21 @@ Load the relevant skills before doing work in that area. Skills are in `.github/
 ## Agent workflows
 
 Consult `setup/wrapper-catalog.md` before using GitHub issue commands. Issue create, list, view,
-classify, hierarchy, claim, release, in-review, and doctor go through `python setup/repo_issue.py`.
-Optional audit telemetry: `HARNESS_TELEMETRY=1` and/or `AGENT_AUDIT_LOG=<path>`.
+classify, hierarchy, claim, release, in-review, doctor, velocity, pr-draft, sweep-stale, and
+scaffold go through `python setup/repo_issue.py`. Optional audit telemetry:
+`HARNESS_TELEMETRY=1` and/or `AGENT_AUDIT_LOG=<path>`.
+
+Velocity helpers (use these deliberately):
+```bash
+python setup/repo_issue.py doctor [--offline] [--target /path/to/consumer]
+python setup/repo_issue.py velocity --days 14
+python setup/repo_issue.py pr-draft --issue <n> --write
+python setup/repo_issue.py sweep-stale --days 7          # dry-run
+python setup/repo_issue.py scaffold --title "..." --body-file x.issue-body.local.md --lane lane:observability
+```
+
+Lane `wip_limit` in `setup/project-taxonomy.json` blocks new claims when a lane already has too
+many `status:wip` issues (default workers: 1; foundation: 2).
 
 ### Filing a new issue
 
@@ -188,7 +201,8 @@ python setup/repo_issue.py claim \
 The wrapper posts a structured CLAIM comment first (unique id), re-reads to elect the earliest
 active claim, then adds `status:wip`. Losers fail closed and RELEASE themselves. An issue is
 grabbable iff: open, correct `lane:*`, not `status:wip`/`status:in-review`/`blocked`, no active
-structured CLAIM marker.
+structured CLAIM marker, and the lane is under its `wip_limit`. After implementation, prefer
+`python setup/repo_issue.py pr-draft --issue <n> --write` before `gh pr create`.
 
 ### Worker loop
 

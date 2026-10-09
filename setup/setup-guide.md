@@ -5,9 +5,13 @@ Do not copy files by ad-hoc `cp`. Use the documented entry points:
 | Goal | Doc | Command |
 |---|---|---|
 | Health check before install | [`wrapper-catalog.md`](wrapper-catalog.md) | `python setup/repo_issue.py doctor [--offline]` |
+| Consumer adoption score | [`wrapper-catalog.md`](wrapper-catalog.md) | `python setup/repo_issue.py doctor --target /path/to/consumer` |
 | Dogfood this harness on itself | [`docs/guides/trial-install.md`](../docs/guides/trial-install.md) | `python setup/create_labels.py` then `python setup/repo_issue.py` |
 | Install into a consumer infra repo | [`docs/guides/multi-repo-rollout.md`](../docs/guides/multi-repo-rollout.md) | `python setup/sync_harness_to_repo.py --target <path> --dry-run` |
 | Issue create/claim/classify | [`wrapper-catalog.md`](wrapper-catalog.md) | `python setup/repo_issue.py …` |
+| Cycle time / stale WIP | [`wrapper-catalog.md`](wrapper-catalog.md) | `velocity` / `sweep-stale` |
+| Initiative breakdown | [`wrapper-catalog.md`](wrapper-catalog.md) | `scaffold --lane …` |
+| Five-minute live demo | [`docs/guides/five-minute-demo.md`](../docs/guides/five-minute-demo.md) | claim → pr-draft → velocity |
 | Agent allowlist | [`permissions-setup.md`](permissions-setup.md) | `python setup/apply_permissions.py --dry-run` (human only) |
 | Audit telemetry | [`wrapper-catalog.md`](wrapper-catalog.md) | `HARNESS_TELEMETRY=1` and/or `AGENT_AUDIT_LOG=<path>` |
 

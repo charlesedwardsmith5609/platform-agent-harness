@@ -102,7 +102,8 @@ Protocol inside the wrapper:
 Free-text mentions of the word "CLAIM" do **not** count. Only harness markers do.
 
 **Grabbable** means ALL of: open issue, correct `lane:*`, no `status:wip`, no `status:in-review`,
-no `blocked` label, no active structured CLAIM. The wrapper refuses otherwise.
+no `blocked` label, no active structured CLAIM, and the lane is under its taxonomy `wip_limit`.
+The wrapper refuses otherwise (including WIP-limit refusals).
 
 **Release** (explicit mode required):
 ```bash
@@ -159,12 +160,19 @@ Then:
    ## Blast radius
    [Which systems/teams are affected and how]"
    ```
-7. **Update labels:** `python setup/repo_issue.py in-review --issue <n>`
-8. **Append acceptance scenarios** to `docs/test-scenarios/pending.md` for any change that
+7. **Draft PR body:** `python setup/repo_issue.py pr-draft --issue <n> --write` then open the PR
+8. **Update labels:** `python setup/repo_issue.py in-review --issue <n>`
+9. **Append acceptance scenarios** to `docs/test-scenarios/pending.md` for any change that
    requires human or integration verification
-9. **Hand off to coordinator** — the PR is the handoff. A brief issue comment noting the PR is
+10. **Hand off to coordinator** — the PR is the handoff. A brief issue comment noting the PR is
    open is optional but helpful.
-10. **Re-triage your lane** before declaring it empty — `python setup/repo_issue.py list --state open` and keep only issues labeled `lane:<X>`
+11. **Re-triage your lane** before declaring it empty — `python setup/repo_issue.py list --state open` and keep only issues labeled `lane:<X>`
+
+Coordinator velocity hygiene (periodic):
+```bash
+python setup/repo_issue.py velocity --days 14
+python setup/repo_issue.py sweep-stale --days 7
+```
 
 ---
 

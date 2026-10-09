@@ -71,6 +71,7 @@ setup/
   apply_permissions.ps1            # PowerShell launcher for apply_permissions.py
   create-labels.sh                 # Bash launcher for create_labels.py
   create-labels.ps1                # PowerShell launcher for create_labels.py
+  pr_gate.py                       # PR hygiene gate (Closes #, blast radius, foundation paths)
 pyproject.toml                     # Installable package + repo-issue console script
 docs/
   STATUS.md                        # Current state, active work, milestone progress
@@ -80,15 +81,21 @@ docs/
     project-board.md               # Optional GitHub Project lane sync
     claim-concurrency-drill.md     # Live fail-closed claim drill
     multi-repo-rollout.md          # Install harness into consumer infra repos
+    five-minute-demo.md            # Live demo script for claim → PR → velocity
   test-scenarios/
     pending.md                     # Validation scenarios awaiting human/integration testing
     archive/                       # Confirmed scenarios (moved here after validation)
   review-ledger.md                 # Record of competing-model review passes
 tests/
   test_repo_issue.py               # Taxonomy, permissions, and claim-race unit tests
+  test_velocity_features.py        # WIP limits, velocity, pr-draft, doctor score, PR gate
 .github/workflows/
   harness-ci.yml                   # unittest + taxonomy/permission sanity on PRs
+  pr-gate.yml                      # Coordination hygiene gate on pull requests
 ```
+
+**Velocity features:** per-lane `wip_limit`, `repo_issue.py velocity|pr-draft|sweep-stale|scaffold`,
+`doctor --target` adoption scores, and PR gate checks for `Closes #` / blast radius / foundation paths.
 
 ---
 

@@ -6,6 +6,16 @@ claim without colliding or touching the shared foundation.
 Load `.github/skills/workflow/issue-triage.md` and `setup/wrapper-catalog.md` before filing.
 Create issues with `python setup/repo_issue.py create`, not raw `gh issue create`.
 
+For a multi-lane initiative, prefer the scaffold wrapper (foundation parent + blocked children):
+
+```bash
+python setup/repo_issue.py scaffold \
+  --title "Initiative name" \
+  --body-file initiative.issue-body.local.md \
+  --lane lane:observability \
+  --lane lane:ci-cd
+```
+
 ---
 
 ## 1. Name the outcome and the blast radius

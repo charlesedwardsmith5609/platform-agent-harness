@@ -1,0 +1,42 @@
+name: pr-gate
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: pr-gate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  coordination-hygiene:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Collect changed files
+        id: diff
+        shell: bash
+        run: |
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          git diff --name-only "$BASE...$HEAD" > /tmp/pr-changed-files.txt
+          wc -l /tmp/pr-changed-files.txt
+
+      - name: Run PR gate
+        env:
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+        run: |
+          python setup/pr_gate.py \
+            --diff-files /tmp/pr-changed-files.txt \
+            --branch "${{ github.head_ref }}"

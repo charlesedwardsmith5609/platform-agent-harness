@@ -71,7 +71,17 @@ production fleet.
 - At least one milestone exists and matches taxonomy names
 - At least one issue was created **only** via `setup/repo_issue.py`
 - `python -m unittest discover -s tests -v` still passes
+- `python setup/repo_issue.py doctor --offline` reports `ok: true`
 - Friction notes captured (missing skills, Windows launcher, install copy set, etc.)
+
+Optional velocity smoke (after a claim exists):
+
+```bash
+python setup/repo_issue.py pr-draft --issue <n>
+python setup/repo_issue.py velocity --days 14
+```
+
+Demo script: [`five-minute-demo.md`](five-minute-demo.md).
 
 ## Out of scope for first trial
 

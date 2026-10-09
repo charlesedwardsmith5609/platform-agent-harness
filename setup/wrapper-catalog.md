@@ -19,12 +19,13 @@ Run one bare executable per tool call. Do not chain with `&&`, pipes, or `cd`.
 | `setup/apply_permissions.ps1` | same | PowerShell launcher for `apply_permissions.py`. |
 | `setup/claim_concurrency_drill.py` | (no args) | Live two-worker claim race drill; expects fail-closed second claim. |
 | `setup/sync_harness_to_repo.py` | `--target <path> [--dry-run] [--force] [--include-identity]` | Copy allowlisted harness files into a consumer infra checkout. `--force` required to replace existing destination directories. |
+| `setup/pr_gate.py` | `[--event] [--body-file] [--diff-files] [--branch] [--warn-only]` | PR hygiene gate: require `Closes #` + `## Blast radius`; foundation-path diffs need coordinator signal. |
 
 ## Issue lifecycle
 
 | Wrapper | Operations | Contract |
 |---|---|---|
-| `setup/repo_issue.py` | `create`, `list`, `view`, `classify`, `link-child`, `unlink-child`, `claim`, `release`, `in-review`, `doctor` | Taxonomy-bound GitHub issue lifecycle (`setup/platform_harness/`). `claim` is comment-first and fail-closed on races. `doctor [--offline]` checks taxonomy, sync paths, and optional `gh` auth. Do not substitute raw `gh issue` for these operations. |
+| `setup/repo_issue.py` | `create`, `list`, `view`, `classify`, `link-child`, `unlink-child`, `claim`, `release`, `in-review`, `doctor`, `velocity`, `pr-draft`, `sweep-stale`, `scaffold` | Taxonomy-bound GitHub issue lifecycle (`setup/platform_harness/`). `claim` is comment-first, fail-closed on races, and respects per-lane `wip_limit`. Do not substitute raw `gh issue` for these operations. |
 
 ### Command shapes
 
@@ -41,7 +42,11 @@ python setup/repo_issue.py unlink-child --parent <number> --child <number>
 python setup/repo_issue.py claim --issue <number> --lane <lane> --worker <handle> --branch <branch>
 python setup/repo_issue.py release --issue <number> --mode abandon|blocked --reason-file <ignored.rationale.local.md>
 python setup/repo_issue.py in-review --issue <number>
-python setup/repo_issue.py doctor [--offline]
+python setup/repo_issue.py doctor [--offline] [--target <consumer-repo-path>]
+python setup/repo_issue.py velocity [--days 14]
+python setup/repo_issue.py pr-draft --issue <number> [--write]
+python setup/repo_issue.py sweep-stale [--days 7] [--apply]
+python setup/repo_issue.py scaffold --title "<title>" --body-file <ignored.issue-body.local.md> --lane <lane> [--lane <lane> ...] [--type feature] [--priority P2] [--no-foundation]
 ```
 
 Creation leaves milestone empty (untriaged). Classification requires a configured milestone when
@@ -49,9 +54,16 @@ Creation leaves milestone empty (untriaged). Classification requires a configure
 priority, concern, and lane labels; claim-status and unrelated labels stay intact. Parent/child
 hierarchy is independent of issue type.
 
-Claim `--worker` / `--branch` reject whitespace and newlines so CLAIM comments cannot smuggle
-extra harness markers. Structured telemetry is optional: set `HARNESS_TELEMETRY=1` (JSON lines on
-stderr) and/or `AGENT_AUDIT_LOG=<path>` (append JSONL).
+Lane `wip_limit` (in taxonomy) caps concurrent `status:wip` claims per lane. Claim `--worker` /
+`--branch` reject whitespace and newlines so CLAIM comments cannot smuggle extra harness markers.
+
+`doctor --target` returns an adoption **score** (0–100). `velocity` reports open WIP, stale claims,
+P0/P1 aging, and median claim→close / claim→merge hours. `sweep-stale` defaults to dry-run;
+pass `--apply` to release. `scaffold` creates a foundation parent (unless `--no-foundation`) plus
+blocked per-lane children.
+
+Structured telemetry is optional: set `HARNESS_TELEMETRY=1` (JSON lines on stderr) and/or
+`AGENT_AUDIT_LOG=<path>` (append JSONL).
 
 Body and rationale files must be physical, repository-local files ignored by Git (use the
 `*.issue-body.local.md` and `*.rationale.local.md` patterns).
@@ -61,3 +73,5 @@ Body and rationale files must be physical, repository-local files ignored by Git
 Pull request merge, foundation changes, and GitHub milestone creation remain explicit coordinator
 or human operations. Validation stays as documented in `CLAUDE.md` — run each command as its own
 call. In this harness repo that is `python -m unittest discover -s tests -v`, not pytest.
+
+PR hygiene is machine-checked by `.github/workflows/pr-gate.yml` (via `setup/pr_gate.py`).

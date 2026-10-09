@@ -23,7 +23,9 @@ Adoption on a real infra repo has not started yet.
 4. **Phase 4 scale** — done (#12 multi-repo rollout guide + sync tool).
 5. **Adoption kit** — trial-install guide + Windows `.ps1` launchers in place.
 6. **Hire-bar hardening** — `doctor`, claim input validation, optional audit telemetry, CI
-   concurrency/cache, MIT LICENSE (this branch).
+   concurrency/cache, MIT LICENSE.
+7. **Velocity pack** — lane `wip_limit`, `velocity` report, `pr-draft`, `doctor --target`
+   scorecard, `sweep-stale`, `scaffold`, PR gate workflow, five-minute demo guide.
 
 ## Backlog (later / optional)
 
@@ -78,4 +80,13 @@ Adoption on a real infra repo has not started yet.
 ```bash
 python -m unittest discover -s tests -v
 python setup/apply_permissions.py --dry-run
+python setup/repo_issue.py doctor --offline
+```
+
+Useful velocity commands (need `gh` when not offline):
+
+```bash
+python setup/repo_issue.py velocity --days 14
+python setup/repo_issue.py sweep-stale --days 7
+python setup/repo_issue.py doctor --target .
 ```

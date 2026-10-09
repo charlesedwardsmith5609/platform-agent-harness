@@ -11,7 +11,10 @@ ISSUE_JSON_FIELDS = (
 )
 ISSUE_JSON_FIELDS_FALLBACK = "number,title,body,state,labels,milestone,assignees,comments,url"
 # issue list does not reliably support parent/subIssues; omit them for batch list.
-LIST_JSON_FIELDS = "number,title,body,state,labels,milestone,assignees,comments,url"
+LIST_JSON_FIELDS = (
+    "number,title,body,state,labels,milestone,assignees,comments,url,"
+    "createdAt,updatedAt,closedAt"
+)
 
 _label_name_cache: set[str] | None = None
 
@@ -82,6 +85,9 @@ def normalize_issue(issue: dict) -> dict:
         "parent": relation(issue.get("parent") if isinstance(issue.get("parent"), dict) else None),
         "children": [relation(child) for child in sub_issue_nodes(issue.get("subIssues"))],
         "url": issue.get("url"),
+        "createdAt": issue.get("createdAt"),
+        "updatedAt": issue.get("updatedAt"),
+        "closedAt": issue.get("closedAt"),
     }
 
 

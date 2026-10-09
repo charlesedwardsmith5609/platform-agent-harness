@@ -84,42 +84,50 @@
     {
       "name": "lane:foundation",
       "color": "1D76DB",
-      "description": "Shared foundation: Terraform modules, OIDC trust, base images, SLO framework — COORDINATOR ONLY"
+      "description": "Shared foundation: Terraform modules, OIDC trust, base images, SLO framework — COORDINATOR ONLY",
+      "wip_limit": 2
     },
     {
       "name": "lane:compute",
       "color": "0E8A16",
-      "description": "EKS/Kubernetes fleet, node groups, resource management, Kubernetes upgrades"
+      "description": "EKS/Kubernetes fleet, node groups, resource management, Kubernetes upgrades",
+      "wip_limit": 1
     },
     {
       "name": "lane:networking",
       "color": "5319E7",
-      "description": "Envoy Proxy, API gateway, service mesh, TLS/mTLS, ingress, DNS"
+      "description": "Envoy Proxy, API gateway, service mesh, TLS/mTLS, ingress, DNS",
+      "wip_limit": 1
     },
     {
       "name": "lane:identity",
       "color": "B4A7D6",
-      "description": "OIDC workload identity, secrets management, cert rotation, RBAC, IAM"
+      "description": "OIDC workload identity, secrets management, cert rotation, RBAC, IAM",
+      "wip_limit": 1
     },
     {
       "name": "lane:observability",
       "color": "006B75",
-      "description": "OTel pipeline, SLO/SLI alert rules, dashboards, on-call routing"
+      "description": "OTel pipeline, SLO/SLI alert rules, dashboards, on-call routing",
+      "wip_limit": 1
     },
     {
       "name": "lane:ci-cd",
       "color": "BFD4F2",
-      "description": "Deployment pipelines, release automation, build infrastructure"
+      "description": "Deployment pipelines, release automation, build infrastructure",
+      "wip_limit": 1
     },
     {
       "name": "lane:platform-api",
       "color": "C2E0C6",
-      "description": "Internal developer APIs, service onboarding, self-service tooling"
+      "description": "Internal developer APIs, service onboarding, self-service tooling",
+      "wip_limit": 1
     },
     {
       "name": "lane:cost",
       "color": "F9D0C4",
-      "description": "Cost attribution, FinOps dashboards, budget alerts, chargeback"
+      "description": "Cost attribution, FinOps dashboards, budget alerts, chargeback",
+      "wip_limit": 1
     }
   ],
   "milestones": [
