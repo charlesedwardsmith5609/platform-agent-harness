@@ -15,17 +15,17 @@ Adoption on a real infra repo has not started yet.
 
 ## Active initiatives
 
-1. **Dogfood trial** — this repo's harness issues #2/#5 closed. Second-repo sandbox:
+1. **Dogfood trial** — sandbox
    [`acme-platform-infra-sandbox`](https://github.com/charlesedwardsmith5609/acme-platform-infra-sandbox)
-   (private dummy fleet) with harness installed and sample issue #1 on `lane:observability`.
-2. **P1 harness quality** — done (#2 package split, #5 argparse/batch list/release modes).
-3. **Adoption kit** — trial-install guide + Windows `.ps1` launchers in place.
+   completed worker loop on issue #1. Harness issues #2/#5 closed.
+2. **P1 harness quality** — done.
+3. **Phase 3 reliability** — #9 in progress (mutation mocks, project sync stub, claim drill).
+4. **Adoption kit** — trial-install guide + Windows `.ps1` launchers in place.
 
-## Backlog (Phase 3+)
+## Backlog (Phase 4+)
 
-- Broader mocked-gh coverage for create/classify hierarchy
-- Optional Project board sync when `project_board` is configured
-- Multi-worker claim concurrency drill on a staging repo
+- Multi-region / multi-repo rollout playbooks
+- Optional weekly status rollup (out of scope unless requested)
 
 ## Trial notes / friction
 
