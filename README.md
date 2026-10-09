@@ -58,6 +58,7 @@ setup/
   create_labels.py                 # Create/reconcile taxonomy labels
   agent-permissions.json           # Portable permission source (placeholder root)
   apply_permissions.py             # Materialize permissions into gitignored local files
+  apply_permissions.ps1            # PowerShell launcher for apply_permissions.py
   create-labels.sh                 # Bash launcher for create_labels.py
   create-labels.ps1                # PowerShell launcher for create_labels.py
 pyproject.toml                     # Installable package + repo-issue console script

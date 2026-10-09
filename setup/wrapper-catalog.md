@@ -16,6 +16,7 @@ Run one bare executable per tool call. Do not chain with `&&`, pipes, or `cd`.
 | `setup/create-labels.sh` | same | Bash launcher for `create_labels.py`. |
 | `setup/create-labels.ps1` | same | PowerShell launcher for `create_labels.py`. |
 | `setup/apply_permissions.py` | `[--dry-run]` | Resolves the portable permission placeholder into a gitignored local settings file. |
+| `setup/apply_permissions.ps1` | same | PowerShell launcher for `apply_permissions.py`. |
 
 ## Issue lifecycle
 
