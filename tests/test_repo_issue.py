@@ -158,6 +158,7 @@ class PermissionSourceTests(unittest.TestCase):
         allow = claude["permissions"]["allow"]
         self.assertIn("Bash(python setup/repo_issue.py *)", allow)
         self.assertIn("Bash(python setup/pr_gate.py *)", allow)
+        self.assertIn("Bash(python setup/trial_local.py *)", allow)
         self.assertIn("Bash(gh pr create *)", allow)
         self.assertNotIn("Bash(python *)", allow)
         self.assertNotIn("Bash(python3 *)", allow)

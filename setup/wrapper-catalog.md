@@ -20,6 +20,9 @@ Run one bare executable per tool call. Do not chain with `&&`, pipes, or `cd`.
 | `setup/claim_concurrency_drill.py` | (no args) | Live two-worker claim race drill; expects fail-closed second claim. |
 | `setup/sync_harness_to_repo.py` | `--target <path> [--dry-run] [--force] [--include-identity]` | Copy allowlisted harness files into a consumer infra checkout. `--force` required to replace existing destination directories. |
 | `setup/pr_gate.py` | `[--event] [--body-file] [--diff-files] [--branch] [--warn-only]` | PR hygiene gate: require `Closes #`/`Fixes`/`Resolves` **or** `Tracking: none`, plus `## Blast radius`; foundation-path diffs need coordinator/`lane:foundation` signal. |
+| `setup/trial_local.py` | `[--worktree] [--smoke] [--worker name]` | Bootstrap local dogfood trial: doctor, labels, milestones, permissions, templates, optional worker worktree + smoke claim loop. |
+| `setup/trial-local.ps1` | same | PowerShell launcher for `trial_local.py`. |
+| `setup/trial-local.sh` | same | Bash launcher for `trial_local.py`. |
 
 ## Issue lifecycle
 
