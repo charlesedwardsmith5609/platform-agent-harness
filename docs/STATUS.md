@@ -26,6 +26,8 @@ Adoption on a real infra repo has not started yet.
    concurrency/cache, MIT LICENSE.
 7. **Velocity pack** — lane `wip_limit`, `velocity` report, `pr-draft`, `doctor --target`
    scorecard, `sweep-stale`, `scaffold`, PR gate workflow, five-minute demo guide.
+8. **Local trial bootstrap** — `setup/trial_local.py` (+ `.ps1`/`.sh`) prepares doctor, labels,
+   milestones, permissions, templates, optional worker worktree, and `--smoke` claim loop.
 
 ## Backlog (later / optional)
 
@@ -43,6 +45,8 @@ Adoption on a real infra repo has not started yet.
 
 ## Trial notes / friction
 
+- Local bootstrap: `python setup/trial_local.py --worktree` (add `--smoke` for a full GitHub loop).
+  Worker checkout lands at `../platform-agent-harness-trial-worker`.
 - `gh` was missing on the trial machine at first; install via winget before label/issue steps.
 - `gh auth login` rejected the git-credential token (`missing required scope 'read:org'`);
   `GH_TOKEN` from git credentials works for `gh api` / issue wrappers in this environment.

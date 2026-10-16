@@ -5,14 +5,34 @@ first time. The default trial target is **this repository**
 (`platform-agent-harness`) so coordination can be exercised without touching a
 production fleet.
 
+## Fast path (recommended)
+
+From a clean checkout of this repo on `main`:
+
+```bash
+# Windows
+.\setup\trial-local.ps1 -Worktree
+
+# Unix
+bash setup/trial-local.sh --worktree
+
+# Optional: full create→classify→claim→release→close against GitHub
+python setup/trial_local.py --worktree --smoke
+```
+
+This installs the package, pulls `GH_TOKEN` from git credentials when needed,
+runs doctor, ensures labels/milestones, materializes local permissions, writes
+gitignored trial body templates, and (with `--worktree`) creates
+`../platform-agent-harness-trial-worker`.
+
 ## Preconditions
 
 - [ ] `git` and `python` 3.11+ on PATH
-- [ ] `gh` authenticated to the trial repo (`gh auth status`)
+- [ ] `gh` on PATH (token may come from git credentials via the bootstrap)
 - [ ] Working tree on `main`, clean enough to commit STATUS / CLAUDE adaptations
-- [ ] Human present for label/milestone creation and the first claim
+- [ ] Human present for the first real claim if you skip `--smoke`
 
-## Steps
+## Manual steps (if you prefer not to use the bootstrap)
 
 1. **Fill identity** — adapt `CLAUDE.md` repository identity, development arc, and
    validation commands to the trial repo (not fictional platform folders if this

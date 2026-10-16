@@ -33,6 +33,7 @@
             "python setup/repo_issue.py:*",
             "python setup/sync_harness_to_repo.py:*",
             "python setup/pr_gate.py:*",
+            "python setup/trial_local.py:*",
             "python -m unittest:*",
             "python3 setup/apply_permissions.py:*",
             "python3 setup/claim_concurrency_drill.py:*",
@@ -40,6 +41,7 @@
             "python3 setup/repo_issue.py:*",
             "python3 setup/sync_harness_to_repo.py:*",
             "python3 setup/pr_gate.py:*",
+            "python3 setup/trial_local.py:*",
             "python3 -m unittest:*"
           ]
         },
