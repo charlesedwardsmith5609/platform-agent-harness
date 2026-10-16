@@ -1,4 +1,4 @@
-# Local scratch (issue bodies, triage rationale, commit drafts) — never commit.
+# Local scratch (issue bodies, triage rationale, commit drafts) - never commit.
 *.local.md
 *.issue-body.local.md
 *.rationale.local.md
