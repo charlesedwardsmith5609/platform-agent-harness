@@ -16,19 +16,10 @@ Record of competing-model review passes. Newest entry first.
 
 ---
 
-## Review — 2026-10-16
+## Provenance note
 
-- **Reviewed-through:** `a1374fb` (post #20 local trial bootstrap + gitignore hygiene)
-- **Scope:** incremental — `setup/trial_local.py`, `.gitignore`, trial docs
-- **Issues opened:** none
-- **Summary:** 0 findings — P0: 0, P1: 0, P2: 0, security: 0
-- **Notes:** Dogfood bootstrap path reviewed for secret leakage and worktree path safety.
+Earlier ledger entries (2026-10-09 and 2026-10-16) were written during the dogfood trial and
+could not be tied to a saved review transcript, so they have been removed rather than left as
+unverifiable claims. The next entry should link the actual review output (PR comment or file).
 
-## Review — 2026-10-09
-
-- **Reviewed-through:** `de8caac` (PR #18 harness hygiene + velocity pack)
-- **Scope:** full — claim protocol, permissions allowlist, PR gate, velocity helpers, CI
-- **Issues opened:** #16 (hardening · P1 · lane:identity · security) landed via #17
-- **Summary:** findings addressed in-branch — P0: 0, P1: allowlist/sync trust, P2: hygiene
-- **Notes:** Competing-model style pass focused on fail-closed claims, secret heuristics, and
-  sync `--force` trust boundary before merge.
+_No verified review passes recorded yet._
