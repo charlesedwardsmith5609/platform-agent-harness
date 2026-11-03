@@ -90,6 +90,7 @@ gitignored trial body templates, and (with `--worktree`) creates
 - Labels from taxonomy exist on GitHub
 - At least one milestone exists and matches taxonomy names
 - At least one issue was created **only** via `setup/repo_issue.py`
+- `python -m pip install -e ".[dev]" && python -m ruff check setup tests && python -m mypy` clean
 - `python -m unittest discover -s tests -v` still passes
 - `python setup/repo_issue.py doctor --offline` reports `ok: true`
 - Friction notes captured (missing skills, Windows launcher, install copy set, etc.)

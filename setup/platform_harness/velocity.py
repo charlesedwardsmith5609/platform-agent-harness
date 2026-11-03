@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from .errors import IssueError
 from .github_remote import label_name_set, list_issue_records, view_issue_number
@@ -19,7 +19,7 @@ def _parse_ts(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return datetime.fromisoformat(value)
     except ValueError:
         return None
 
@@ -89,9 +89,9 @@ def _list_merged_prs(limit: int = 100) -> list[dict]:
 def velocity_report(*, days: int = 14, now: datetime | None = None) -> dict:
     if days < 1 or days > 365:
         raise IssueError("velocity --days must be between 1 and 365")
-    clock = now or datetime.now(timezone.utc)
+    clock = now or datetime.now(UTC)
     if clock.tzinfo is None:
-        clock = clock.replace(tzinfo=timezone.utc)
+        clock = clock.replace(tzinfo=UTC)
     cutoff = clock - timedelta(days=days)
 
     open_issues = list_issue_records("open")

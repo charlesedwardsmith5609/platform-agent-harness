@@ -1,8 +1,7 @@
 import json
 import sys
-import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -90,7 +89,7 @@ class VelocityUnitTests(unittest.TestCase):
             ]
         }
         ts = first_claim_timestamp(issue)
-        self.assertEqual(ts, datetime(2026, 1, 2, tzinfo=timezone.utc))
+        self.assertEqual(ts, datetime(2026, 1, 2, tzinfo=UTC))
 
     def test_velocity_report_summary_shape(self):
         open_issue = {
@@ -128,7 +127,7 @@ class VelocityUnitTests(unittest.TestCase):
 
         set_command_runners(gh=gh)
         report = velocity_report(
-            days=14, now=datetime(2026, 1, 5, tzinfo=timezone.utc)
+            days=14, now=datetime(2026, 1, 5, tzinfo=UTC)
         )
         self.assertEqual(report["summary"]["open_wip_count"], 1)
         self.assertEqual(report["summary"]["stale_wip_count"], 1)
@@ -177,7 +176,7 @@ class SweepTests(unittest.TestCase):
         }
         set_command_runners(gh=FakeGitHub(issue))
         stale = find_stale_claims(
-            days=2, now=datetime(2026, 1, 10, tzinfo=timezone.utc)
+            days=2, now=datetime(2026, 1, 10, tzinfo=UTC)
         )
         self.assertEqual(len(stale), 1)
         self.assertEqual(stale[0]["issue"], 3)

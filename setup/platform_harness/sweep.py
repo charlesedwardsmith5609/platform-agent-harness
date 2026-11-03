@@ -2,8 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from datetime import UTC, datetime, timedelta
 
 from .errors import IssueError
 from .github_remote import label_name_set, list_issue_records, view_issue_number
@@ -16,7 +15,7 @@ def _parse_ts(value: str | None) -> datetime | None:
     if not value:
         return None
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00"))
+        return datetime.fromisoformat(value)
     except ValueError:
         return None
 
@@ -24,9 +23,9 @@ def _parse_ts(value: str | None) -> datetime | None:
 def find_stale_claims(*, days: int, now: datetime | None = None) -> list[dict]:
     if days < 1 or days > 365:
         raise IssueError("sweep-stale --days must be between 1 and 365")
-    clock = now or datetime.now(timezone.utc)
+    clock = now or datetime.now(UTC)
     if clock.tzinfo is None:
-        clock = clock.replace(tzinfo=timezone.utc)
+        clock = clock.replace(tzinfo=UTC)
     cutoff = clock - timedelta(days=days)
     stale: list[dict] = []
     for issue in list_issue_records("open"):

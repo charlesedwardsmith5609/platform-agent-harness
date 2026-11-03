@@ -12,7 +12,6 @@ import re
 from .errors import IssueError
 from .runtime import run_gh
 
-
 REQUIRED_BOARD_KEYS = ("owner", "number", "lane_field", "lane_option_map")
 SAFE_TOKEN_RE = re.compile(r"^[A-Za-z0-9._:/-]{1,128}$")
 ISSUE_URL_RE = re.compile(r"^https://github\.com/[^/]+/[^/]+/issues/[1-9]\d*$")

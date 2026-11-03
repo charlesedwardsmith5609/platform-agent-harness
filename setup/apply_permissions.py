@@ -12,7 +12,7 @@ import json
 import sys
 from pathlib import Path
 
-from platform_harness import IssueError, REPOSITORY_ROOT, run_git
+from platform_harness import REPOSITORY_ROOT, IssueError, run_git
 
 PLACEHOLDER = "REPLACE_WITH_YOUR_REPO_GIT_ROOT"
 SOURCE = Path(__file__).resolve().parent / "agent-permissions.json"
@@ -66,7 +66,7 @@ def materialize(root: Path, document: dict) -> tuple[dict, dict]:
             "permission source allowed_directories must resolve only to the repository Git root"
         )
     resolved = {"locations": {str(root): entry}}
-    identifiers = []
+    identifiers: list[str] = []
     for approval in entry.get("tool_approvals") or []:
         if approval.get("kind") == "commands":
             identifiers.extend(approval.get("commandIdentifiers") or [])

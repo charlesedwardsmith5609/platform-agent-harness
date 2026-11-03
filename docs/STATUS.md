@@ -22,8 +22,8 @@ Adoption on a real infra repo has not started yet.
 3. **Phase 3 reliability** — done (#9).
 4. **Phase 4 scale** — done (#12 multi-repo rollout guide + sync tool).
 5. **Adoption kit** — trial-install guide + Windows `.ps1` launchers in place.
-6. **Hire-bar hardening** — `doctor`, claim input validation, optional audit telemetry, CI
-   concurrency/cache, MIT LICENSE.
+6. **Harness quality baseline** — `doctor`, claim input validation, optional audit telemetry, CI
+   concurrency/cache, MIT LICENSE, `dev` extras (Ruff + mypy) in CI.
 7. **Velocity pack** — lane `wip_limit`, `velocity` report, `pr-draft`, `doctor --target`
    scorecard, `sweep-stale`, `scaffold`, PR gate workflow, five-minute demo guide.
 8. **Local trial bootstrap** — `setup/trial_local.py` (+ `.ps1`/`.sh`) prepares doctor, labels,
@@ -82,6 +82,9 @@ Adoption on a real infra repo has not started yet.
 ## Validation commands
 
 ```bash
+python -m pip install -e ".[dev]"
+python -m ruff check setup tests
+python -m mypy
 python -m unittest discover -s tests -v
 python setup/apply_permissions.py --dry-run
 python setup/repo_issue.py doctor --offline

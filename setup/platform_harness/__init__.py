@@ -11,15 +11,20 @@ from .issue_ops import (
     format_claim_body,
     format_release_body,
 )
-from .runtime import REPOSITORY_ROOT, SETUP_ROOT, run_git, run_gh, set_command_runners
 from .project_sync import project_board_config, sync_project_lane
-from .taxonomy import classification_from_arguments, load_taxonomy, parse_json, validate_title
+from .runtime import REPOSITORY_ROOT, SETUP_ROOT, run_gh, run_git, set_command_runners
+from .taxonomy import (
+    classification_from_arguments,
+    load_taxonomy,
+    parse_json,
+    validate_title,
+)
 
 __all__ = [
     "COMMANDS",
-    "IssueError",
     "REPOSITORY_ROOT",
     "SETUP_ROOT",
+    "IssueError",
     "active_claim",
     "active_claims",
     "claim_issue",

@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from .errors import IssueError
 from .github_remote import label_name_set, view_issue_number
 from .runtime import REPOSITORY_ROOT
 from .taxonomy import positive_issue_number
@@ -53,7 +52,7 @@ def build_pr_draft(*, issue: int | str) -> dict:
     body = f"""Closes #{number}
 
 ## What changed
-[What was done and why — 2–4 sentences]
+[What was done and why - 2-4 sentences]
 
 ## Validation
 {validation_md}

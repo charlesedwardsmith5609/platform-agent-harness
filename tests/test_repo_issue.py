@@ -9,7 +9,6 @@ SETUP = ROOT / "setup"
 sys.path.insert(0, str(SETUP))
 
 from apply_permissions import PLACEHOLDER, command_to_claude, load_source, materialize
-from sync_harness_to_repo import DEFAULT_PATHS, IDENTITY_PATHS
 from platform_harness import (
     IssueError,
     active_claim,
@@ -25,16 +24,18 @@ from platform_harness import (
     sub_issue_nodes,
     validate_title,
 )
+from platform_harness.cli import build_parser
+from platform_harness.cli import main as cli_main
 from platform_harness.doctor import run_doctor
+from platform_harness.issue_ops import list_issues, release_issue
+from platform_harness.runtime import REPOSITORY_ROOT
 from platform_harness.taxonomy import (
     reject_secret_content,
     validate_claim_branch,
     validate_claim_worker,
 )
-from platform_harness.cli import build_parser, main as cli_main
-from platform_harness.issue_ops import list_issues, release_issue
-from platform_harness.runtime import REPOSITORY_ROOT
 from platform_harness.telemetry import emit_event, telemetry_enabled
+from sync_harness_to_repo import DEFAULT_PATHS, IDENTITY_PATHS
 
 
 class TaxonomyTests(unittest.TestCase):

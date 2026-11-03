@@ -4,9 +4,11 @@ An issue-driven, agent-first development harness for platform engineering teams 
 more Claude Code agents on infrastructure repositories — without making chat history, one machine,
 or one agent's memory the source of truth.
 
-Adapted from an agentic development coordination system originally built for game engine development.
-This port applies the same coordination principles to platform engineering work: Kubernetes, Terraform,
-observability pipelines, secrets management, CI/CD, and internal developer tooling.
+Adapted from [Patrick Ryan](https://github.com/PatrickRyanMS)'s
+[agentic-dev-harness](https://github.com/PatrickRyanMS/agentic-dev-harness) — an issue-driven
+agentic development coordination system. This port applies the same coordination principles to
+platform engineering work: Kubernetes, Terraform, observability pipelines, secrets management,
+CI/CD, and internal developer tooling.
 
 ---
 
@@ -90,7 +92,7 @@ tests/
   test_repo_issue.py               # Taxonomy, permissions, and claim-race unit tests
   test_velocity_features.py        # WIP limits, velocity, pr-draft, doctor score, PR gate
 .github/workflows/
-  harness-ci.yml                   # unittest + taxonomy/permission sanity on PRs
+  harness-ci.yml                   # ruff + mypy + unittest + taxonomy/permission sanity
   pr-gate.yml                      # Coordination hygiene gate on pull requests
 ```
 
@@ -203,15 +205,23 @@ infra repo.
 
 ## Relationship to the source
 
-This harness is a port of a Copilot-native agentic development coordination system, adapted for:
+**Credit:** this repository is a platform-engineering port of
+[Patrick Ryan](https://github.com/PatrickRyanMS)'s
+[agentic-dev-harness](https://github.com/PatrickRyanMS/agentic-dev-harness). The original harness
+is the source of the coordination model (GitHub as ledger, taxonomy-bound issues, fail-closed
+claims, coordinator/worker roles, portable permissions, skills-as-markdown). Any design credit for
+those ideas belongs there; this repo adapts them for infra blast-radius work.
+
+Adapted for:
 
 - **Claude Code** instead of GitHub Copilot (CLAUDE.md instead of copilot-instructions.md)
 - **Platform engineering** instead of application development (infra lanes, blast radius, OIDC,
   SLOs replace renderer, UI, and animation lanes)
-- **Claude API execution harness** instead of a competing-model review via a separate AI service
+- **Optional Claude API execution harness** (`agent-harness` sibling) alongside competing-model
+  review guidance in this repo
 - **Python wrappers** plus Bash *and* PowerShell launchers for labels and permissions
 
-The core insights from the original are preserved: GitHub as the coordination layer, visible
+The core insights from Patrick's harness are preserved: GitHub as the coordination layer, visible
 claims with timestamped provenance, shared foundation protection, role separation between
 coordinator and workers, skills-as-composable-markdown that agents load on demand, taxonomy-bound
 issue wrappers, and portable permission sources that never commit machine-specific absolute paths.

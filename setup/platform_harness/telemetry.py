@@ -11,8 +11,8 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timezone
-from typing import Any
+from datetime import UTC, datetime
+from typing import Any, Self
 
 
 def telemetry_enabled() -> bool:
@@ -27,7 +27,7 @@ def emit_event(event: str, **fields: Any) -> None:
     if not telemetry_enabled():
         return
     payload: dict[str, Any] = {
-        "ts": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "ts": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "component": "platform_harness",
         "event": event,
     }
@@ -66,7 +66,7 @@ class timed_event:
         self.fields = fields
         self._start = 0.0
 
-    def __enter__(self) -> timed_event:
+    def __enter__(self) -> Self:
         self._start = time.monotonic()
         return self
 
@@ -74,7 +74,7 @@ class timed_event:
         duration_ms = int((time.monotonic() - self._start) * 1000)
         if exc_type is None:
             emit_event(f"{self.event}.ok", duration_ms=duration_ms, **self.fields)
-            return None
+            return
         emit_event(
             f"{self.event}.error",
             duration_ms=duration_ms,
@@ -82,4 +82,4 @@ class timed_event:
             error=str(exc)[:500] if exc else None,
             **self.fields,
         )
-        return None
+        return

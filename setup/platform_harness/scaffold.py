@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
 from .errors import IssueError
 from .issue_ops import change_child_relation, create_issue
 from .runtime import REPOSITORY_ROOT

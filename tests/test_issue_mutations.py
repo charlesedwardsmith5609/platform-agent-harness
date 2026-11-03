@@ -1,7 +1,7 @@
 import json
+import sys
 import unittest
 from pathlib import Path
-import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 SETUP = ROOT / "setup"

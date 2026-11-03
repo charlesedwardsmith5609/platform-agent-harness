@@ -77,9 +77,10 @@ def argument_values(args: list[str], name: str) -> list[str]:
 
 
 def positive_issue_number(value: str | None, name: str = "issue") -> int:
-    if not POSITIVE_INT_RE.match(str(value or "")):
+    text = str(value or "")
+    if not POSITIVE_INT_RE.match(text):
         raise IssueError(f"{name} must be a positive integer")
-    return int(value)
+    return int(text)
 
 
 def assert_flag_arguments(

@@ -29,9 +29,9 @@ ROOT = Path(__file__).resolve().parents[1]
 SETUP = ROOT / "setup"
 sys.path.insert(0, str(SETUP))
 
-from platform_harness import IssueError, load_taxonomy, run_gh, run_git  # noqa: E402
-from platform_harness.doctor import run_doctor  # noqa: E402
-from platform_harness.taxonomy import parse_json  # noqa: E402
+from platform_harness import IssueError, load_taxonomy, run_gh, run_git
+from platform_harness.doctor import run_doctor
+from platform_harness.taxonomy import parse_json
 
 
 def _run(cmd: list[str], *, check: bool = True, env: dict | None = None) -> subprocess.CompletedProcess:

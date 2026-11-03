@@ -15,9 +15,9 @@ from pathlib import Path
 SETUP = Path(__file__).resolve().parent
 sys.path.insert(0, str(SETUP))
 
-from platform_harness import IssueError, load_taxonomy  # noqa: E402
-from platform_harness.issue_ops import claim_issue, create_issue, release_issue  # noqa: E402
-from platform_harness.runtime import REPOSITORY_ROOT, run_gh  # noqa: E402
+from platform_harness import IssueError, load_taxonomy
+from platform_harness.issue_ops import claim_issue, create_issue, release_issue
+from platform_harness.runtime import REPOSITORY_ROOT, run_gh
 
 
 def main() -> int:

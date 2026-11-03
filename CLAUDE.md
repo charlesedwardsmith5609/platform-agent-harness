@@ -9,8 +9,9 @@
 
 This repository is the **platform engineering agent harness** (coordination layer): issue
 taxonomy, claim protocol, portable permissions, and workflow skills that agents load before
-touching infrastructure work. It is currently in a **dogfood trial on itself** — see
-`docs/STATUS.md` and `docs/guides/trial-install.md`.
+touching infrastructure work. It is adapted from Patrick Ryan's
+[agentic-dev-harness](https://github.com/PatrickRyanMS/agentic-dev-harness). It is currently in a
+**dogfood trial on itself** — see `docs/STATUS.md` and `docs/guides/trial-install.md`.
 
 When copied into a real infra org repo, adapt this section to that org's compute, networking,
 identity, observability, CI/CD, and developer platform ownership. Blast radius there is
@@ -39,6 +40,9 @@ foundation/       (reserved when this harness is installed into a fleet repo)
 
 Validation commands (run these before opening any PR):
 ```bash
+python -m pip install -e ".[dev]"
+python -m ruff check setup tests
+python -m mypy
 python -m unittest discover -s tests -v
 python setup/apply_permissions.py --dry-run
 ```

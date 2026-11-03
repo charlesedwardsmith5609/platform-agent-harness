@@ -78,7 +78,7 @@ def validate_target(target: Path) -> Path:
 
 
 def validate_rel(rel: str) -> None:
-    if not rel or rel.startswith("/") or rel.startswith("\\") or ".." in Path(rel).parts:
+    if not rel or rel.startswith(("/", "\\")) or ".." in Path(rel).parts:
         raise SystemExit(f"refusing path that escapes harness root: {rel}")
 
 

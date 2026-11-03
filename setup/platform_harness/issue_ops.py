@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from .errors import IssueError
 from .github_remote import (
@@ -246,7 +246,7 @@ def claim_winner(issue: dict) -> dict | None:
 
 
 def assert_grabbable(issue: dict, lane: str) -> None:
-    if str(issue.get("state") or "").upper() not in {"OPEN"}:
+    if str(issue.get("state") or "").upper() != "OPEN":
         raise IssueError("issue must be open")
     labels = label_name_set(issue)
     if lane.lower() not in labels:
@@ -330,7 +330,7 @@ def claim_issue(taxonomy: dict, args: list[str]) -> dict:
     ensure_label(configured_item(taxonomy["claim_statuses"], "status:wip", "claim status"))
 
     claim_id = str(uuid.uuid4())
-    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    stamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
     body = format_claim_body(
         claim_id=claim_id,
         lane=lane,

@@ -12,13 +12,11 @@ or after install:
 
 from __future__ import annotations
 
-import sys
-
 from platform_harness import (
     COMMANDS,
-    IssueError,
     REPOSITORY_ROOT,
     SETUP_ROOT,
+    IssueError,
     active_claim,
     active_claims,
     claim_issue,
@@ -40,9 +38,9 @@ from platform_harness import (
 
 __all__ = [
     "COMMANDS",
-    "IssueError",
     "REPOSITORY_ROOT",
     "SETUP_ROOT",
+    "IssueError",
     "active_claim",
     "active_claims",
     "claim_issue",

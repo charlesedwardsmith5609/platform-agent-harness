@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from .errors import IssueError
-from .runtime import REPOSITORY_ROOT, SETUP_ROOT, run_gh, run_trusted
+from .runtime import REPOSITORY_ROOT, run_gh, run_trusted
 from .taxonomy import load_taxonomy
 
 # Relative paths a consumer checkout should have after sync (identity files optional).
@@ -40,7 +40,7 @@ def _score(checks: list[dict]) -> int:
     if total <= 0:
         return 0
     earned = sum(int(item.get("weight") or 1) for item in checks if item.get("ok"))
-    return int(round(100.0 * earned / total))
+    return round(100.0 * earned / total)
 
 
 def _harness_self_checks(*, probe_github: bool, root: Path) -> list[dict]:
@@ -100,7 +100,7 @@ def _harness_self_checks(*, probe_github: bool, root: Path) -> list[dict]:
                 weight=3,
             )
         )
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         checks.append(_check("sync_allowlist_paths", False, str(exc)[:200], weight=3))
 
     if probe_github:
@@ -155,7 +155,7 @@ def run_doctor(
     probe_github: bool = True,
     target: str | Path | None = None,
 ) -> dict:
-    """Return a structured health / adoption report with a 0–100 score."""
+    """Return a structured health / adoption report with a 0-100 score."""
     if target is None:
         root = REPOSITORY_ROOT
         checks = _harness_self_checks(probe_github=probe_github, root=root)

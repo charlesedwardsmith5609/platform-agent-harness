@@ -10,6 +10,12 @@ readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
 
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.6",
+    "mypy>=1.11",
+]
+
 [project.scripts]
 repo-issue = "platform_harness.cli:main"
 
@@ -22,3 +28,43 @@ include = ["platform_harness*"]
 
 [tool.setuptools.package-data]
 platform_harness = ["py.typed"]
+
+[tool.ruff]
+target-version = "py311"
+src = ["setup", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E4",
+    "E7",
+    "E9",
+    "F",
+    "I",
+    "UP",
+    "RUF",
+    "RET",
+    "PIE",
+    "FURB",
+    "PYI",
+]
+ignore = [
+    "E402",  # scripts/tests insert setup/ on sys.path before local imports
+]
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "setup"
+explicit_package_bases = true
+warn_return_any = false
+warn_unused_ignores = true
+check_untyped_defs = true
+files = [
+    "setup/platform_harness",
+    "setup/apply_permissions.py",
+    "setup/create_labels.py",
+    "setup/pr_gate.py",
+    "setup/repo_issue.py",
+    "setup/sync_harness_to_repo.py",
+    "setup/trial_local.py",
+    "setup/claim_concurrency_drill.py",
+]

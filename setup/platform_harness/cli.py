@@ -119,7 +119,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     doctor.add_argument(
         "--target",
-        help="Consumer repo path for adoption scorecard (0–100)",
+        help="Consumer repo path for adoption scorecard (0-100)",
     )
 
     velocity = sub.add_parser("velocity", help="Claim/PR cycle-time and aging report")
@@ -173,9 +173,8 @@ def dispatch_namespace(namespace: argparse.Namespace) -> object:
             target=getattr(namespace, "target", None),
         )
     if command == "velocity":
-        report = velocity_report(days=int(namespace.days))
-        # Keep response concise for agents — drop huge internal lists already summarized.
-        return report
+        # Keep response concise for agents - drop huge internal lists already summarized.
+        return velocity_report(days=int(namespace.days))
     if command == "pr-draft":
         draft = build_pr_draft(issue=namespace.issue)
         if getattr(namespace, "write", False):
