@@ -7,10 +7,15 @@ then starts a new agent session.
 ## Files
 
 - `setup/agent-permissions.json` — portable command policy. The location key is the placeholder
-  `REPLACE_WITH_YOUR_REPO_GIT_ROOT`, never a machine-specific absolute path.
-- `setup/apply_permissions.py` — substitutes the current Git root and writes gitignored local files.
-- `.claude/settings.local.json` — Claude Code allowlist (generated, not committed).
+  `REPLACE_WITH_YOUR_REPO_GIT_ROOT`, never a machine-specific absolute path. Optional sibling
+  `claude_permissions.ask` / `claude_permissions.deny` ship Claude Code defaults (aligned with
+  agent-pairing-kit: ask `WebFetch`; deny environ/env/ssh/cloud-cred/metadata probes).
+- `setup/apply_permissions.py` — substitutes the current Git root and writes gitignored local files,
+  including Claude `allow` plus any `ask` / `deny` from the source.
+- `.claude/settings.local.json` — Claude Code permissions (generated, not committed).
 - `.cursor/permissions.local.json` — resolved copy for Cursor-side review (generated, not committed).
+  Cursor still relies on `CLAUDE.md` agreements for tool/network policy; deny/ask materialize for
+  Claude Code.
 
 ## Matching granularity
 
@@ -36,7 +41,13 @@ installers, blanket MCP access, inline `python -c`, and broad interpreter wildca
 
 Fleet consumers that need `terraform` / `tflint` / `make` should add **narrow** prefixes in their
 own fork of `setup/agent-permissions.json` after human review — they are intentionally absent
-from the default harness policy.
+from the default harness policy. Do not auto-approve ambient cloud CLIs (`aws`, `az`, `gcloud`)
+that inherit instance or user credentials.
+
+**Threat model:** `deny` / `ask` reduce accidental exposure; they are not a sandbox. Bash
+subprocesses can bypass `Read` denies unless matching Bash patterns are denied (the default
+`claude_permissions.deny` list includes curl/wget metadata and cat/head credential-path
+patterns for that reason).
 
 ## Apply
 

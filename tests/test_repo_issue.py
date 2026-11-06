@@ -166,12 +166,34 @@ class PermissionSourceTests(unittest.TestCase):
         self.assertNotIn("Bash(gh issue *)", allow)
         self.assertNotIn("Bash(git push *)", allow)
         self.assertNotIn("Bash(gh pr *)", allow)
+        self.assertEqual(claude["permissions"]["ask"], ["WebFetch"])
+        deny = claude["permissions"]["deny"]
+        self.assertIn("Read(/proc/**/environ)", deny)
+        self.assertIn("Read(**/.env)", deny)
+        self.assertIn("Read(~/.ssh/**)", deny)
+        self.assertIn("Read(**/.aws/credentials)", deny)
+        self.assertIn("Bash(curl *169.254.169.254*)", deny)
         self.assertEqual(command_to_claude("gh auth status"), "Bash(gh auth status)")
         source_text = (SETUP / "agent-permissions.json").read_text(encoding="utf-8")
         self.assertIn("REPLACE_WITH_YOUR_REPO_GIT_ROOT", source_text)
+        self.assertIn('"claude_permissions"', source_text)
         self.assertNotIn("python:*", source_text)
         self.assertNotIn("git push:*", source_text)
         self.assertNotIn("nme-mcp", source_text)
+
+    def test_materialize_rejects_invalid_claude_permissions(self):
+        document = load_source()
+        document["claude_permissions"] = {"ask": [""], "deny": ["Read(**/.env)"]}
+        with self.assertRaises(IssueError):
+            materialize(Path("E:/example/platform-repo"), document)
+        document = load_source()
+        document["claude_permissions"] = {"ask": ["WebFetch"], "deny": "Read(**/.env)"}
+        with self.assertRaises(IssueError):
+            materialize(Path("E:/example/platform-repo"), document)
+        document = load_source()
+        document["claude_permissions"] = ["WebFetch"]
+        with self.assertRaises(IssueError):
+            materialize(Path("E:/example/platform-repo"), document)
 
     def test_materialize_rejects_broad_python(self):
         document = load_source()

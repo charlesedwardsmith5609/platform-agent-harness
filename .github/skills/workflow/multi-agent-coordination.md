@@ -133,8 +133,10 @@ git worktree add ../platform-wt-obs -b issue/<n>-<slug> origin/main
 Then:
 2. **Claim** the issue (§4) — wrapper posts a structured CLAIM, then `status:wip`
 3. **Read skills** — `coding/platform-engineering.md` + the lane-specific skill before writing anything
-4. **Implement** — follow platform engineering principles, hardening guidelines, and the lane's
-   validation mode. Comment the *why*, not the *what*. Reference `(#<n>)` in commit messages.
+4. **Implement** — follow platform engineering principles, hardening guidelines, the lane's
+   validation mode, and `CLAUDE.md` tool/network policy (no ambient cloud credentials; stop and
+   comment if a tool/network call is denied). Comment the *why*, not the *what*. Reference
+   `(#<n>)` in commit messages.
 5. **Validate locally** — run each validation command from `CLAUDE.md` as its own separate call.
    Never chain with `&&` or pipes. Never open a red PR.
    In this harness repo:
@@ -250,11 +252,34 @@ Worker loop:
 
 Never touch foundation/ — propose changes on the issue and wait for the coordinator.
 Never grab issues outside lane:<X>. Never self-merge.
+Follow CLAUDE.md "Tool and network policy": no ambient cloud credentials, no metadata/env/ssh
+credential probes, no WebFetch/undeclared network without approval. If blocked, comment on the
+issue and stop — do not work around the deny.
 ```
 
 ---
 
-## 9. GitHub setup (one time)
+## 9. Worker tool and network policy
+
+Workers load the full policy from `CLAUDE.md` (**Tool and network policy**). Summary for the
+kickoff loop:
+
+- **Allowlist:** `setup/agent-permissions.json` — same command allowlist for every worker lane in
+  this harness; fleet forks may add narrow lane-specific prefixes after human review only.
+- **Hosts:** GitHub via approved `gh` / wrappers; `127.0.0.1` / `localhost` for tests; nothing
+  else without an issue comment approving the host first.
+- **Deny:** environ files, `.env*`, `~/.ssh`, cloud credential files, `/var/run/secrets/**`, and
+  cloud metadata (`169.254.169.254`, `metadata.google.internal`). Claude `ask`/`deny` defaults
+  materialize via `python setup/apply_permissions.py`.
+- **Threat model:** deny/ask reduce accidents; they are not a sandbox. Bash can bypass `Read`
+  denies unless Bash patterns match. Hitting a block → comment on the issue and stop.
+- **Credentials:** never use ambient instance/user/CI cloud credentials. Task-scoped credentials
+  only. Out-of-lane secrets → record on the issue (no values) and stop
+  (`playbooks/incident-response.md`).
+
+---
+
+## 10. GitHub setup (one time)
 
 Labels come from `setup/project-taxonomy.json`. Preview, then create:
 

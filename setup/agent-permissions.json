@@ -53,5 +53,35 @@
         "REPLACE_WITH_YOUR_REPO_GIT_ROOT"
       ]
     }
+  },
+  "claude_permissions": {
+    "ask": [
+      "WebFetch"
+    ],
+    "deny": [
+      "Read(/proc/**/environ)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(**/.ssh/**)",
+      "Read(**/.aws/credentials)",
+      "Read(**/.aws/config)",
+      "Read(**/.azure/**)",
+      "Read(**/gcloud/application_default_credentials.json)",
+      "Read(**/gcloud/credentials.db)",
+      "Read(/var/run/secrets/**)",
+      "Bash(curl *169.254.169.254*)",
+      "Bash(wget *169.254.169.254*)",
+      "Bash(curl *metadata.google.internal*)",
+      "Bash(wget *metadata.google.internal*)",
+      "Bash(cat */.env*)",
+      "Bash(cat */.aws/credentials*)",
+      "Bash(cat */.aws/config*)",
+      "Bash(cat */.ssh/*)",
+      "Bash(head */.env*)",
+      "Bash(head */.aws/credentials*)",
+      "Bash(head */.aws/config*)",
+      "Bash(head */.ssh/*)"
+    ]
   }
 }
