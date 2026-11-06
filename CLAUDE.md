@@ -233,6 +233,59 @@ structured CLAIM marker, and the lane is under its `wip_limit`. After implementa
 
 ---
 
+## Tool and network policy
+
+Platform agents run where a leaked credential or a surprise network call has a large blast radius.
+Treat the Claude Code / Cursor permission files as a seatbelt, not a sandbox.
+
+**Threat model:** `permissions.deny` and `permissions.ask` reduce *accidental* exposure (wrong-path
+reads, casual `WebFetch`). They are not isolation. Bash (and any subprocess) can bypass `Read`
+denies unless matching Bash patterns are also denied. An agent that hits a block must **stop and
+comment on its issue** — never invent a workaround (different tool, encoded path, ambient cloud
+CLI, or undeclared network call).
+
+### Allowed tools (by lane)
+
+All worker lanes in this harness use the same portable allowlist in
+`setup/agent-permissions.json` (issue wrappers, non-destructive git, non-merge `gh pr`, unittest).
+`lane:foundation` stays coordinator-only. Fleet consumer repos may add **narrow, human-reviewed**
+command prefixes for a lane (for example `terraform` for compute) in their fork of that file —
+they are intentionally absent from the default harness policy. Do not add ambient cloud CLIs
+(`aws`, `az`, `gcloud`) that pick up instance or user credentials.
+
+### Allowed hosts
+
+- `github.com` / `api.github.com` via the approved `gh` / `repo_issue.py` surfaces only
+- `127.0.0.1` / `localhost` for local tests
+- Any other host needs prior approval recorded on the issue before the call
+
+Never contact the cloud instance metadata endpoint `169.254.169.254` or
+`metadata.google.internal`.
+
+### Forbidden paths and probes
+
+Do not read or exfiltrate:
+
+- `/proc/*/environ` (and Claude deny pattern `/proc/**/environ`)
+- `~/.ssh` and any `.ssh/` directory
+- `.env` / `.env.*`
+- Cloud credential files (for example `~/.aws/credentials`, `~/.aws/config`, `~/.azure/**`,
+  gcloud ADC / credentials DB)
+- Kubernetes-style `/var/run/secrets/**`
+- Cloud metadata (`169.254.169.254`, `metadata.google.internal`) via curl/wget or any other tool
+
+`WebFetch` and any undeclared network tool require an ask/approval. Defaults ship in
+`setup/agent-permissions.json` → `claude_permissions` and are applied with
+`python setup/apply_permissions.py`.
+
+### Ambient credentials (incident-informed)
+
+Agents must **never** use ambient cloud credentials (instance role, user SSO cache, CI OIDC
+session left in the shell, container env). Use only scoped credentials issued for the current
+task. If an agent sees credentials outside its lane (or any secret it was not issued), it
+records what it saw on the issue (no secret values) and stops. See
+`playbooks/incident-response.md`.
+
 ## Guardrails (never violate)
 
 - Never grab an issue that is `status:wip` / `status:in-review` / `blocked` / already CLAIMed, or outside your lane
@@ -241,6 +294,8 @@ structured CLAIM marker, and the lane is under its `wip_limit`. After implementa
 - Validate locally before the PR; never open a PR that fails its own validation
 - `lane:foundation` is coordinator-only, always
 - Emit one status event after the meaningful milestone (PR opened or merged)
+- Never use ambient cloud credentials; only task-scoped credentials. Out-of-lane secrets → comment on the issue and stop
+- Never work around a tool/network deny or ask prompt; stop and comment on the issue instead
 
 ---
 

@@ -4,6 +4,13 @@
 - Committed permission sources use the portable placeholder `REPLACE_WITH_YOUR_REPO_GIT_ROOT`.
   Absolute roots are materialized only in gitignored local settings when the human applies
   permissions. `allowed_directories` must resolve to that root only.
+- `setup/agent-permissions.json` also declares `claude_permissions.ask` (at least `WebFetch`) and
+  `claude_permissions.deny` for environ/env/ssh/cloud-cred/metadata paths. Apply with
+  `python setup/apply_permissions.py`. These reduce accidental exposure; they are not a sandbox —
+  Bash can bypass `Read` denies unless matching Bash patterns are denied.
+- Allowed network: GitHub via approved `gh` / wrappers; `127.0.0.1` / `localhost` for tests.
+  Other hosts need prior approval on the issue. Never use ambient cloud credentials; see
+  `CLAUDE.md` and `playbooks/incident-response.md`.
 - Every command identifier is an exact normalized prefix. A child subcommand does not authorize
   its parent or sibling commands.
 - Run one bare executable per tool call. Do not use `cd`, chaining, pipes, loops, conditionals, or

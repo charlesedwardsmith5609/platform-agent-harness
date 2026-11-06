@@ -42,6 +42,15 @@ Adoption on a real infra repo has not started yet.
   token validation.
 - Claim `--worker` / `--branch` reject newlines and path escapes so CLAIM comments cannot smuggle
   harness markers. OpenAI/Anthropic key shapes added to body secret heuristics.
+- **Tool/network policy (2026-11-06)** — `CLAUDE.md` + worker skill + incident playbook document
+  allowed hosts, forbidden credential/metadata paths, stop-and-comment on deny, and no ambient
+  cloud credentials. `setup/agent-permissions.json` ships Claude `ask` (`WebFetch`) / `deny`
+  defaults via `apply_permissions.py` (pairing-kit-aligned). Threat model: deny/ask are not a
+  sandbox; Bash can bypass `Read` unless Bash patterns match.
+- **`pull_request_target` audit (2026-11-06)** — grepped `github-actions/` and
+  `.github/workflows/`: **none present**. Live workflows use `pull_request` / `push`; the OIDC
+  example uses `workflow_dispatch` only. No change required for the Dec 2 public-repo default
+  block.
 
 ## Trial notes / friction
 
