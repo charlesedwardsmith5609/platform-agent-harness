@@ -73,10 +73,9 @@ the generated `.claude/settings.local.json`.
 - Its `deny` list has 8 entries against 29 in the source's `claude_permissions.deny`. The `.env` /
   `.env.*` `Read` rules and the four `curl`/`wget` metadata rules are identical. It lacks the ssh, cloud-credential,
   `cat`/`head` and git-flag denies.
-- **Conflict:** it writes `Read(/proc/**/environ)` and `Read(/var/run/secrets/**)` with a single
-  leading `/`, while `agent-permissions.json` uses `//`. Under the `//` rule above, the kit's two
-  rules do not target the absolute paths. The correct forms reach a session only after
-  `apply_permissions.py` has been run.
+- Its two absolute-path `Read` rules (`Read(//proc/**/environ)`, `Read(//var/run/secrets/**)`) use
+  the `//` form, matching `agent-permissions.json`. (An earlier kit version wrote them with a
+  single `/`, which does not target the absolute paths; fixed in agent-pairing-kit `2ccbb85`.)
 - The connector and artifact keys are not produced by `apply_permissions.py`; they exist only in
   the kit file. They were not exercised here, so their effect is unverified.
 - `sync_harness_to_repo.py` does not copy `.claude/settings.json`, `scripts/` or `skills/`.

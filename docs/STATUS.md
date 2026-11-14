@@ -58,8 +58,8 @@ Adoption on a real infra repo has not started yet.
   `pr-draft` adds `gh_argv` and Windows quoting. See `CHANGELOG.md` and `DECISIONS.md`.
 - **agent-pairing-kit installed (2026-11-14, kit `c8eabf8`)** — `scripts/`, `skills/`,
   `.claude/commands/`, `.claude/settings.json`, `.pairing-profiles`, and the pairing-mode section
-  of `CLAUDE.md`. Open item: the kit's `.claude/settings.json` writes two `Read` denies with a
-  single `/`, unlike `agent-permissions.json` (see `setup/permissions-setup.md`).
+  of `CLAUDE.md`. The kit's `.claude/settings.json` is a separate, shorter source than
+  `agent-permissions.json` (see `setup/permissions-setup.md`); its two `Read` denies now use `//`.
 
 ## Trial notes / friction
 

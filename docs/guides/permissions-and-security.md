@@ -13,7 +13,7 @@
   anchors at the settings source.
 - The committed kit file `.claude/settings.json` is separate from `apply_permissions.py` output
   (`.claude/settings.local.json`). It disables claude.ai connectors and artifacts, asks before
-  `WebFetch`, and denies a shorter list that writes two `Read` rules with a single `/`. See
+  `WebFetch`, and denies a shorter list (its two absolute-path `Read` rules use `//`). See
   [`setup/permissions-setup.md`](../../setup/permissions-setup.md#relation-to-claudesettingsjson-kit).
 - Allowed network: GitHub via approved `gh` / wrappers; `127.0.0.1` / `localhost` for tests.
   Other hosts need prior approval on the issue. Never use ambient cloud credentials; see

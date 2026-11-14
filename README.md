@@ -160,7 +160,7 @@ python setup/apply_permissions.py
 This writes gitignored `.claude/settings.local.json` and `.cursor/permissions.local.json`. It is
 separate from the committed kit file `.claude/settings.json`; see
 [`setup/permissions-setup.md`](setup/permissions-setup.md#relation-to-claudesettingsjson-kit),
-including a known mismatch in the `Read` deny path form. The sync tool does not copy `scripts/`,
+including how the two sources differ. The sync tool does not copy `scripts/`,
 `skills/` or `.claude/settings.json` into consumer repos.
 
 **4. Adapt docs/STATUS.md** (already present after sync of identity, or write it if the consumer had none).

@@ -392,12 +392,10 @@ Two sources of Claude Code permissions exist and they are not generated from eac
   keys. Its `deny` list is longer (29 entries, adding ssh, cloud credentials, `cat`/`head`
   of credential paths and `git ... --output|--no-index|--upload-pack|--exec`) and uses
   `Read(//proc/**/environ)` and `Read(//var/run/secrets/**)`.
-- **Known mismatch:** the kit file writes those two `Read` rules with a single leading `/`. Per
-  the Claude Code permissions documentation (as recorded in `DECISIONS.md`, 2026-11-14), a single
-  `/` anchors at the settings source and an absolute path needs `//`, so the kit's two rules do
-  not match the paths they name. The `//` forms come from `apply_permissions.py`, so they apply
-  only after it has been run. This has not been reconciled; changing the kit file is a human
-  decision.
+- The kit file's two `Read` rules use the same `//` forms (fixed in agent-pairing-kit `2ccbb85`;
+  per the Claude Code permissions documentation, as recorded in `DECISIONS.md` 2026-11-14, a
+  single `/` anchors at the settings source and an absolute path needs `//`). The files still
+  differ otherwise: the kit file is shorter and sets the connector and artifact keys.
 
 ### Tool context cost
 
