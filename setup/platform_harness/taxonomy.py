@@ -211,6 +211,8 @@ def validate_claim_branch(branch: str | None) -> str:
 def ignored_issue_file(repository_root: Path, relpath: str | None, description: str) -> Path:
     if not relpath:
         raise IssueError(f"{description} is required")
+    if not relpath.endswith(".local.md"):
+        raise IssueError(f"{description} must be a scratch file ending in .local.md")
     path = (repository_root / relpath).resolve()
     try:
         path.relative_to(repository_root.resolve())

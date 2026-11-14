@@ -28,6 +28,12 @@ its parent or siblings.
   those run as children of the Python wrappers.
 - Do not auto-approve `git push:*` (includes `--force`). Push remains a human-approved step;
   protect the default branch server-side against non-fast-forward pushes and branch deletion.
+- Prefix rules cannot constrain arguments, so commands whose flags can write, spawn programs or
+  reach out are not auto-approved by prefix: no `git remote:*`, `git pull:*`, `git stash:*`,
+  `git worktree:*` or `git branch:*` (exact read-only forms `git remote -v`, `git branch --list`,
+  `git branch --show-current` only), and `unittest` is limited to
+  `python -m unittest discover -s tests`. `git diff|log|show` with `--output`, `git diff
+  --no-index` and `git fetch --upload-pack|--exec` are in `claude_permissions.deny`.
 - Git global options before the subcommand change the identifier. Do not run `git -c ...`.
 
 Do not add `gh api` (including GraphQL) to the source. Issue hierarchy uses `gh issue edit`

@@ -1,4 +1,6 @@
+import fnmatch
 import json
+import os
 import shlex
 import sys
 import unittest
@@ -206,6 +208,117 @@ class PermissionSourceTests(unittest.TestCase):
                 approval["commandIdentifiers"] = ["python:*"]
         with self.assertRaises(IssueError):
             materialize(Path("E:/example/platform-repo"), document)
+
+
+def _allowed(command: str, identifiers: list[str], deny: list[str]) -> bool:
+    """Prefix matcher over the shipped allowlist, then the deny patterns."""
+    for pattern in deny:
+        if pattern.startswith("Bash(") and fnmatch.fnmatchcase(command, pattern[5:-1]):
+            return False
+    for item in identifiers:
+        if item.endswith(":*"):
+            prefix = item[:-2]
+            if command == prefix or command.startswith(prefix + " "):
+                return True
+        elif command == item:
+            return True
+    return False
+
+
+def _shipped_policy() -> tuple[list[str], list[str]]:
+    document = load_source()
+    entry = document["locations"][PLACEHOLDER]
+    identifiers: list[str] = []
+    for approval in entry["tool_approvals"]:
+        if approval.get("kind") == "commands":
+            identifiers.extend(approval["commandIdentifiers"])
+    return identifiers, document["claude_permissions"]["deny"]
+
+
+class AllowlistBypassTests(unittest.TestCase):
+    def test_no_mutating_git_prefixes(self):
+        identifiers, _ = _shipped_policy()
+        for banned in ("git remote:*", "git stash:*", "git worktree:*", "git pull:*", "git branch:*"):
+            self.assertNotIn(banned, identifiers)
+
+    def test_known_bypasses_are_not_allowed(self):
+        identifiers, deny = _shipped_policy()
+        for command in (
+            "git diff --output=x",
+            "git log --output=x",
+            "git show --output=x",
+            "git diff --no-index a b",
+            "git fetch --upload-pack=cmd",
+            "git remote add x y",
+            "git pull origin main",
+            "git branch -D main",
+            "python -m unittest some_writer",
+            "python3 -m unittest some_writer",
+        ):
+            with self.subTest(command=command):
+                self.assertFalse(_allowed(command, identifiers, deny))
+
+    def test_intended_commands_stay_allowed(self):
+        identifiers, deny = _shipped_policy()
+        for command in (
+            "python -m unittest discover -s tests",
+            "python -m unittest discover -s tests -v",
+            "python3 -m unittest discover -s tests -v",
+            "git diff --stat",
+            "git log --oneline",
+            "git fetch origin",
+            "git remote -v",
+            "git branch --show-current",
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(_allowed(command, identifiers, deny))
+
+
+class BodyFileTests(unittest.TestCase):
+    def setUp(self):
+        self.created: list[Path] = []
+
+    def tearDown(self):
+        for path in self.created:
+            if path.is_symlink() or path.is_file():
+                path.unlink()
+            elif path.is_dir():
+                path.rmdir()
+
+    def _make(self, name: str, text: str = "body text\n") -> str:
+        path = REPOSITORY_ROOT / name
+        path.write_text(text, encoding="utf-8")
+        self.created.append(path)
+        return name
+
+    def test_rejects_env_file_without_local_md_suffix(self):
+        for name in (".env", "notes.txt", "x.local.md.bak"):
+            with self.subTest(name=name):
+                rel = self._make(f"{uuid.uuid4().hex[:8]}-{name}" if name != ".env" else "step1.env")
+                with self.assertRaisesRegex(IssueError, r"\.local\.md"):
+                    ignored_issue_file(REPOSITORY_ROOT, rel, "issue body file")
+
+    def test_accepts_issue_body_local_md(self):
+        rel = self._make(f"t{uuid.uuid4().hex[:8]}.issue-body.local.md")
+        self.assertEqual(
+            ignored_issue_file(REPOSITORY_ROOT, rel, "issue body file"),
+            (REPOSITORY_ROOT / rel).resolve(),
+        )
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlinks unavailable")
+    def test_rejects_symlinked_directory_pointing_outside(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as outside:
+            (Path(outside) / "x.local.md").write_text("hi\n", encoding="utf-8")
+            link = REPOSITORY_ROOT / f"lnk{uuid.uuid4().hex[:8]}"
+            try:
+                os.symlink(outside, link)
+            except OSError:
+                self.skipTest("cannot create symlink")
+            self.created.append(link)
+            with self.assertRaises(IssueError):
+                ignored_issue_file(REPOSITORY_ROOT, f"{link.name}/x.local.md", "issue body file")
 
 
 class SecretContentTests(unittest.TestCase):

@@ -23,3 +23,11 @@ Context: `run_trusted` uses `shell=False`, so a title passed as an argv element 
 Choice: `validate_title` rejects quotes, backticks, `$`, `;`, backslash, and `..`. `gh_command` uses `shlex.quote` on the title and the body file name. The issue body stays in the draft markdown and is not copied into the command.
 
 Why: Rejecting the characters at create time does not protect a title that is already on GitHub. Quoting the command does. No new dependency.
+
+## 2026-11-14: Body files must be `.local.md`; the allowlist drops argument-sensitive prefixes
+
+Context: Review of PR #24 found that `ignored_issue_file` accepted any Git-ignored file in the repository (for example `.env`, which `*.env` ignores), and that the allowlist auto-approved `git remote:*`, `git pull:*`, `git diff:*` (`--output`, `--no-index`) and `python -m unittest:*`.
+
+Choice: body, rationale and reason files must end in `.local.md`. Mutating git prefixes are removed, exact read-only forms stay, `unittest` is limited to `discover -s tests`, and Bash deny patterns cover `--output`, `--no-index`, `--upload-pack`, `--exec`. Approved by the human via the review plan approval (hash recorded in `review-archive/platform-agent-harness/APPROVED`).
+
+Why: a prefix rule cannot constrain arguments, so the safer reading (D14) is to remove or narrow the prefix. Deny patterns match literal strings and remain a seatbelt, not a sandbox.

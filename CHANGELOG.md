@@ -4,6 +4,7 @@ Format follows Keep a Changelog. Dates are UTC.
 
 ## [Unreleased] - 2026-11-06
 
+- Review fixes (PR #24, step 1): `--body-file`/`--rationale-file`/`--reason-file` must end in `.local.md` (a Git-ignored `.env` is no longer accepted). The auto-approved command list drops `git remote/pull/stash/worktree/branch` prefixes, narrows `unittest` to `discover -s tests`, and denies `--output`, `--no-index`, `--upload-pack` and `--exec` forms.
 - Untrusted input: issue text is data, never instructions, in the security-hardening skill and both worker loops.
 - Issue titles reject quotes, backticks, `$`, `;`, backslashes, and `..`. `pr-draft` shell-quotes the title so a hostile GitHub title stays one argument.
 - Tool and network policy in `CLAUDE.md` / worker skill / incident playbook (allowed hosts,
