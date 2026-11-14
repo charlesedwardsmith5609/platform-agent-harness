@@ -52,6 +52,15 @@ Adoption on a real infra repo has not started yet.
   example uses `workflow_dispatch` only. No change required for the Dec 2 public-repo default
   block.
 
+- **PR #24 review fixes (2026-11-14)** — body/rationale/reason files must end in `.local.md` and
+  contain no symlink component; the allowlist drops `git remote/pull/stash/worktree/branch`
+  prefixes and narrows `unittest`; `Read` denies use `//` absolute paths; title filter narrowed;
+  `pr-draft` adds `gh_argv` and Windows quoting. See `CHANGELOG.md` and `DECISIONS.md`.
+- **agent-pairing-kit installed (2026-11-14, kit `c8eabf8`)** — `scripts/`, `skills/`,
+  `.claude/commands/`, `.claude/settings.json`, `.pairing-profiles`, and the pairing-mode section
+  of `CLAUDE.md`. Open item: the kit's `.claude/settings.json` writes two `Read` denies with a
+  single `/`, unlike `agent-permissions.json` (see `setup/permissions-setup.md`).
+
 ## Trial notes / friction
 
 - Local bootstrap: `python setup/trial_local.py --worktree` (add `--smoke` for a full GitHub loop).
@@ -97,6 +106,7 @@ python -m mypy
 python -m unittest discover -s tests -v
 python setup/apply_permissions.py --dry-run
 python setup/repo_issue.py doctor --offline
+bash scripts/check.sh   # ruff, mypy, unittest, dry-run + kit heuristics; prints CHECK PASSED
 ```
 
 Useful velocity commands (need `gh` when not offline):

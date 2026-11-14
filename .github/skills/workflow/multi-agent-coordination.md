@@ -143,6 +143,7 @@ Then:
    ```bash
    python -m unittest discover -s tests -v
    python setup/apply_permissions.py --dry-run
+   bash scripts/check.sh
    ```
    In a fleet repo, use that repo's Terraform/cluster commands instead.
 6. **Open PR:**

@@ -35,6 +35,11 @@ setup/            Issue wrappers, taxonomy, permissions, wrapper catalog
 .github/workflows/Harness CI (unittest + taxonomy/permission sanity)
 docs/             STATUS, guides, review ledger, test scenarios
 tests/            Unit tests for taxonomy, permissions, claim races
+playbooks/        Incident response, feature decomposition, status reporting
+scripts/          agent-pairing-kit helpers: check.sh, plan-review.sh, cross-review.sh/.ps1
+skills/           Kit skills (python-service, review checklists); not the same as .github/skills/
+plans/            Per-step plans (plans/step-N.md); REQUIREMENTS.md holds the agreed requirements
+.claude/          Kit slash commands and project settings.json (see "Pairing-mode" below)
 foundation/       (reserved when this harness is installed into a fleet repo)
 ```
 
@@ -46,6 +51,9 @@ python -m mypy
 python -m unittest discover -s tests -v
 python setup/apply_permissions.py --dry-run
 ```
+
+`bash scripts/check.sh` runs the last four checks together (plus the kit heuristics); it prints
+`CHECK PASSED` when everything passes.
 
 ---
 
@@ -370,6 +378,27 @@ rule wins. A human engineer directs this work and owns every design decision.
 - Never paste tokens or credentials into a tool call, issue comment, or sub-agent prompt, and
   never run an install script fetched from a third party without asking.
 
+### Kit `.claude/settings.json` and `setup/apply_permissions.py`
+
+Two sources of Claude Code permissions exist and they are not generated from each other:
+
+- `.claude/settings.json` (committed, from the kit) sets `disableClaudeAiConnectors: true` and
+  `enableArtifact: false`, asks before `WebFetch`, and denies a short list: `Read` of
+  `/proc/**/environ`, `**/.env`, `**/.env.*`, `/var/run/secrets/**`, and `curl`/`wget` to
+  `169.254.169.254` and `metadata.google.internal`. It has no `allow` list.
+- `setup/apply_permissions.py` reads `setup/agent-permissions.json` and writes the gitignored
+  `.claude/settings.local.json` (`allow`, `ask`, `deny`) and `.cursor/permissions.local.json`. It
+  never reads or writes `.claude/settings.json`, and it does not set the connector or artifact
+  keys. Its `deny` list is longer (29 entries, adding ssh, cloud credentials, `cat`/`head`
+  of credential paths and `git ... --output|--no-index|--upload-pack|--exec`) and uses
+  `Read(//proc/**/environ)` and `Read(//var/run/secrets/**)`.
+- **Known mismatch:** the kit file writes those two `Read` rules with a single leading `/`. Per
+  the Claude Code permissions documentation (as recorded in `DECISIONS.md`, 2026-11-14), a single
+  `/` anchors at the settings source and an absolute path needs `//`, so the kit's two rules do
+  not match the paths they name. The `//` forms come from `apply_permissions.py`, so they apply
+  only after it has been run. This has not been reconciled; changing the kit file is a human
+  decision.
+
 ### Tool context cost
 
 Every enabled tool and MCP server costs context tokens on every turn. Enable one for the task that
@@ -386,7 +415,8 @@ needs it, and disable it when that task is done.
 `scripts/check.sh` runs the misbehavior and assertion heuristics, then the stages in
 `scripts/checks/python.sh`, which mirror the validation commands above (ruff check, mypy,
 unittest, `apply_permissions.py --dry-run`). Run `check.sh` as its own call. The two reviews send
-work to a different AI provider (they refuse to run without `gitleaks` and the provider key); they
-can take a few minutes, so use a 10-minute timeout. When findings come back, give your assessment
+work to a different AI provider (`cursor`, `openai` or `anthropic`; `cross-review.ps1` supports
+`openai` and `anthropic` only). They refuse to run without `gitleaks`, and the API providers also
+need `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`. They can take a few minutes, so use a 10-minute timeout. When findings come back, give your assessment
 of each (agree or disagree, with a reason) and do not change the plan or the code until the human
 decides. Review prompts live in `skills/review-checklist.md` and `skills/plan-review-checklist.md`.
