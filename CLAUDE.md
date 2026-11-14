@@ -268,7 +268,7 @@ Never contact the cloud instance metadata endpoint `169.254.169.254` or
 
 Do not read or exfiltrate:
 
-- `/proc/*/environ` (and Claude deny pattern `/proc/**/environ`)
+- `/proc/*/environ` (and Claude deny pattern `//proc/**/environ`)
 - `~/.ssh` and any `.ssh/` directory
 - `.env` / `.env.*`
 - Cloud credential files (for example `~/.aws/credentials`, `~/.aws/config`, `~/.azure/**`,

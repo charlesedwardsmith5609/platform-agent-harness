@@ -6,8 +6,9 @@
   permissions. `allowed_directories` must resolve to that root only.
 - `setup/agent-permissions.json` also declares `claude_permissions.ask` (at least `WebFetch`) and
   `claude_permissions.deny` for environ/env/ssh/cloud-cred/metadata paths. Apply with
-  `python setup/apply_permissions.py`. These reduce accidental exposure; they are not a sandbox —
-  Bash can bypass `Read` denies unless matching Bash patterns are denied.
+  `python setup/apply_permissions.py`. These reduce accidental exposure; they are a seatbelt, not a sandbox —
+  Bash can bypass `Read` denies unless matching Bash patterns are denied, and Bash deny
+  patterns match literal strings, so variables, encoding or another tool bypass them trivially.
 - Allowed network: GitHub via approved `gh` / wrappers; `127.0.0.1` / `localhost` for tests.
   Other hosts need prior approval on the issue. Never use ambient cloud credentials; see
   `CLAUDE.md` and `playbooks/incident-response.md`.

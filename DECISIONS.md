@@ -31,3 +31,11 @@ Context: Review of PR #24 found that `ignored_issue_file` accepted any Git-ignor
 Choice: body, rationale and reason files must end in `.local.md`. Mutating git prefixes are removed, exact read-only forms stay, `unittest` is limited to `discover -s tests`, and Bash deny patterns cover `--output`, `--no-index`, `--upload-pack`, `--exec`. Approved by the human via the review plan approval (hash recorded in `review-archive/platform-agent-harness/APPROVED`).
 
 Why: a prefix rule cannot constrain arguments, so the safer reading (D14) is to remove or narrow the prefix. Deny patterns match literal strings and remain a seatbelt, not a sandbox.
+
+## 2026-11-14: Title filter narrowed (supersedes 2026-11-13 title rule); `//` absolute Read paths
+
+Context: The 2026-11-13 entry made `validate_title` reject quotes and `..` anywhere, which refuses ordinary titles such as "Don't drop spans". Titles are passed as argv with `shell=False` and quoted with `shlex.quote` in `gh_command`, so quoting is the real defense.
+
+Choice: reject control characters, backtick, `$(`, `${`, `;`, `|`, `&`, `<`, `>`, backslash and `../` path segments, each with its own message. Accept apostrophes, double quotes and `..` inside words. The quoting decision in the 2026-11-13 entry still stands.
+
+Also: Claude Code permission docs (code.claude.com/docs/en/permissions, checked 2026-11-14) say a single leading `/` anchors at the settings source and absolute paths need `//`. The `Read(/proc/**/environ)` and `Read(/var/run/secrets/**)` denies were replaced with the `//` forms (the plan proposed keeping both; with the syntax verified, the wrong form was dropped).

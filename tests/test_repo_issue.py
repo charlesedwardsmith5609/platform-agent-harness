@@ -118,7 +118,7 @@ class TaxonomyTests(unittest.TestCase):
             )
 
     def test_title_rejects_control_characters(self):
-        with self.assertRaisesRegex(IssueError, "printable"):
+        with self.assertRaisesRegex(IssueError, "control characters"):
             validate_title("bad\ntitle")
         self.assertEqual(
             validate_title("OIDC trust policy missing sub condition"),
@@ -173,7 +173,10 @@ class PermissionSourceTests(unittest.TestCase):
         self.assertNotIn("Bash(gh pr *)", allow)
         self.assertEqual(claude["permissions"]["ask"], ["WebFetch"])
         deny = claude["permissions"]["deny"]
-        self.assertIn("Read(/proc/**/environ)", deny)
+        self.assertIn("Read(//proc/**/environ)", deny)
+        self.assertNotIn("Read(/proc/**/environ)", deny)
+        self.assertIn("Read(//var/run/secrets/**)", deny)
+        self.assertNotIn("Read(/var/run/secrets/**)", deny)
         self.assertIn("Read(**/.env)", deny)
         self.assertIn("Read(~/.ssh/**)", deny)
         self.assertIn("Read(**/.aws/credentials)", deny)
@@ -830,22 +833,44 @@ class UntrustedIssueTextTests(unittest.TestCase):
     def tearDown(self):
         set_command_runners(gh=None, git=None)
 
-    def test_title_rejects_shell_and_path_metacharacters(self):
-        samples = [
-            'say "hi"',
-            "say 'hi'",
-            "run `id`",
-            "run $(id)",
-            "a; rm -rf /",
-            "a\nb",
-            "look ../etc/passwd",
-            "slash \\ path",
+    def test_title_rejects_hostile_input_with_specific_reason(self):
+        cases = [
+            ("a\nb", "control characters"),
+            ("run `id`", "shell metacharacters"),
+            ("run $(id)", "shell metacharacters"),
+            ("run ${HOME}", "shell metacharacters"),
+            ("a; b", "shell metacharacters"),
+            ("a | b", "shell metacharacters"),
+            ("a & b", "shell metacharacters"),
+            ("a > b", "shell metacharacters"),
+            ("a < b", "shell metacharacters"),
+            ("slash \\ path", "shell metacharacters"),
+            ("../x", "path traversal"),
+            ("look ../etc/passwd", "path traversal"),
+            ("a/../b", "path traversal"),
         ]
-        for sample in samples:
+        for sample, reason in cases:
             with self.subTest(sample=sample):
-                with self.assertRaises(IssueError):
+                with self.assertRaisesRegex(IssueError, reason):
                     validate_title(sample)
-        self.assertEqual(validate_title("OTel collector dropping spans"), "OTel collector dropping spans")
+
+    def test_title_accepts_ordinary_titles(self):
+        for sample in (
+            "Don't drop spans",
+            'Fix "quoted" name',
+            "Upgrade v1.2..v1.3 notes",
+            "OTel collector dropping spans",
+            "Cost: $5 budget",
+        ):
+            with self.subTest(sample=sample):
+                self.assertEqual(validate_title(sample), sample)
+
+    def test_docs_state_denies_are_a_seatbelt_not_a_sandbox(self):
+        for name in ("docs/guides/permissions-and-security.md", "setup/permissions-setup.md", "SECURITY.md"):
+            with self.subTest(name=name):
+                text = (ROOT / name).read_text(encoding="utf-8").lower()
+                self.assertIn("not a sandbox", text)
+                self.assertIn("seatbelt", text)
 
     def test_body_file_rejects_parent_traversal(self):
         with self.assertRaises(IssueError):

@@ -59,7 +59,7 @@
       "WebFetch"
     ],
     "deny": [
-      "Read(/proc/**/environ)",
+      "Read(//proc/**/environ)",
       "Read(**/.env)",
       "Read(**/.env.*)",
       "Read(~/.ssh/**)",
@@ -69,7 +69,7 @@
       "Read(**/.azure/**)",
       "Read(**/gcloud/application_default_credentials.json)",
       "Read(**/gcloud/credentials.db)",
-      "Read(/var/run/secrets/**)",
+      "Read(//var/run/secrets/**)",
       "Bash(curl *169.254.169.254*)",
       "Bash(wget *169.254.169.254*)",
       "Bash(curl *metadata.google.internal*)",

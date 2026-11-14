@@ -50,10 +50,14 @@ own fork of `setup/agent-permissions.json` after human review — they are inten
 from the default harness policy. Do not auto-approve ambient cloud CLIs (`aws`, `az`, `gcloud`)
 that inherit instance or user credentials.
 
-**Threat model:** `deny` / `ask` reduce accidental exposure; they are not a sandbox. Bash
+**Threat model:** `deny` / `ask` reduce accidental exposure; they are a seatbelt, not a sandbox. Bash deny
+patterns match literal strings and are trivially bypassed (variables, encoding, other tools). Bash
 subprocesses can bypass `Read` denies unless matching Bash patterns are denied (the default
 `claude_permissions.deny` list includes curl/wget metadata and cat/head credential-path
 patterns for that reason).
+
+Absolute paths in `Read` rules use the `//` prefix (`Read(//proc/**/environ)`); a single leading
+`/` anchors at the settings source, not the filesystem root.
 
 ## Apply
 
