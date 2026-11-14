@@ -4,6 +4,7 @@ Format follows Keep a Changelog. Dates are UTC.
 
 ## [Unreleased] - 2026-11-06
 
+- Review fixes (PR #24, step 3): the symlink check in `ignored_issue_file` now runs on the unresolved path (it was dead after `resolve()`); `pr-draft` adds `gh_argv` and uses Windows quoting on `nt`.
 - Review fixes (PR #24, step 2): `Read` denies for `/proc/**/environ` and `/var/run/secrets/**` use the documented `//` absolute-path form; docs say Bash denies are a seatbelt, not a sandbox; title errors name the specific reason.
 - Review fixes (PR #24, step 1): `--body-file`/`--rationale-file`/`--reason-file` must end in `.local.md` (a Git-ignored `.env` is no longer accepted). The auto-approved command list drops `git remote/pull/stash/worktree/branch` prefixes, narrows `unittest` to `discover -s tests`, and denies `--output`, `--no-index`, `--upload-pack` and `--exec` forms.
 - Untrusted input: issue text is data, never instructions, in the security-hardening skill and both worker loops.

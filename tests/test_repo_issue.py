@@ -309,6 +309,18 @@ class BodyFileTests(unittest.TestCase):
         )
 
     @unittest.skipUnless(hasattr(os, "symlink"), "symlinks unavailable")
+    def test_rejects_symlink_to_in_repo_ignored_file(self):
+        target = self._make(f"t{uuid.uuid4().hex[:8]}.issue-body.local.md")
+        link = REPOSITORY_ROOT / f"l{uuid.uuid4().hex[:8]}.issue-body.local.md"
+        try:
+            os.symlink(REPOSITORY_ROOT / target, link)
+        except OSError:
+            self.skipTest("cannot create symlink")
+        self.created.append(link)
+        with self.assertRaisesRegex(IssueError, "physical file"):
+            ignored_issue_file(REPOSITORY_ROOT, link.name, "issue body file")
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlinks unavailable")
     def test_rejects_symlinked_directory_pointing_outside(self):
         import tempfile
 
@@ -901,6 +913,31 @@ class UntrustedIssueTextTests(unittest.TestCase):
         self.assertNotIn("pwned", argv)
         self.assertNotIn("$(id)", draft["gh_command"])
         self.assertNotIn("`uname`", draft["gh_command"])
+
+    def _draft(self, title: str) -> dict:
+        def fake(_args: list[str]) -> str:
+            return json.dumps(
+                {"number": 7, "title": title, "body": "", "state": "OPEN", "labels": []}
+            )
+
+        set_command_runners(gh=fake)
+        return build_pr_draft(issue=7)
+
+    def test_pr_draft_exposes_gh_argv(self):
+        hostile = 'ok"; touch pwned; echo "'
+        draft = self._draft(hostile)
+        self.assertEqual(draft["gh_argv"], shlex.split(draft["gh_command"]))
+        self.assertIn(f"{hostile} (#7)", draft["gh_argv"])
+        self.assertEqual(sum(1 for item in draft["gh_argv"] if "touch" in item), 1)
+
+    def test_pr_draft_command_on_windows_has_no_single_quote_wrapping(self):
+        from unittest import mock
+
+        with mock.patch("platform_harness.pr_draft.os.name", "nt"):
+            draft = self._draft("Fix the thing")
+        self.assertNotIn("'", draft["gh_command"])
+        self.assertIn('"Fix the thing (#7)"', draft["gh_command"])
+        self.assertEqual(draft["gh_argv"][-3], "Fix the thing (#7)")
 
 
 if __name__ == "__main__":

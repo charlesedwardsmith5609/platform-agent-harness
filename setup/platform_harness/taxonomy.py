@@ -221,12 +221,19 @@ def ignored_issue_file(repository_root: Path, relpath: str | None, description: 
         raise IssueError(f"{description} is required")
     if not relpath.endswith(".local.md"):
         raise IssueError(f"{description} must be a scratch file ending in .local.md")
+    # Check the unresolved path: resolve() follows links, so is_symlink() on its result
+    # is always false. Reject a link at any component under the repository root.
+    current = repository_root
+    for part in Path(relpath).parts:
+        current = current / part
+        if current.is_symlink():
+            raise IssueError(f"{description} must be a physical file inside the repository")
     path = (repository_root / relpath).resolve()
     try:
         path.relative_to(repository_root.resolve())
     except ValueError as exc:
         raise IssueError(f"{description} must be a physical file inside the repository") from exc
-    if not path.is_file() or path.is_symlink():
+    if not path.is_file():
         raise IssueError(f"{description} must be a physical file inside the repository")
     relative = str(path.relative_to(repository_root.resolve())).replace("\\", "/")
     try:

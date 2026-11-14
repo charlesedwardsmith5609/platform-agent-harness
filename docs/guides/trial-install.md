@@ -5,6 +5,10 @@ first time. The default trial target is **this repository**
 (`platform-agent-harness`) so coordination can be exercised without touching a
 production fleet.
 
+Notes: `pr-draft` returns `gh_command` (POSIX shell quoting, or Windows quoting on `nt`) and `gh_argv`
+(the portable argument list). Body files must be physical `.local.md` files: a symlink at any path
+component under the repository root is rejected.
+
 ## Fast path (recommended)
 
 From a clean checkout of this repo on `main`:

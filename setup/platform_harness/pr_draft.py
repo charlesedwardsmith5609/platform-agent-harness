@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import os
 import re
 import shlex
+import subprocess
 from pathlib import Path
 
 from .github_remote import label_name_set, view_issue_number
@@ -74,15 +76,18 @@ Next: coordinator review
 """
     pr_title = f"{title} (#{number})"
     body_name = f"pr-{number}.issue-body.local.md"
+    gh_argv = ["gh", "pr", "create", "--base", "main", "--title", pr_title, "--body-file", body_name]
+    # POSIX shells get shlex quoting; on Windows use the CreateProcess-style quoting.
+    gh_command = (
+        subprocess.list2cmdline(gh_argv) if os.name == "nt" else shlex.join(gh_argv)
+    )
     return {
         "issue": number,
         "lane": lane,
         "title": pr_title,
         "body": body.strip() + "\n",
-        "gh_command": (
-            "gh pr create --base main --title "
-            f"{shlex.quote(pr_title)} --body-file {shlex.quote(body_name)}"
-        ),
+        "gh_command": gh_command,
+        "gh_argv": gh_argv,
         "hint": (
             f"Write the body to pr-{number}.issue-body.local.md (gitignored), "
             "then run the gh_command after pushing your branch."
