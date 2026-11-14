@@ -346,7 +346,13 @@ class SecretContentTests(unittest.TestCase):
             reject_secret_content("key=sk-abcdefghijklmnopqrstuvwxyz0123456789", "body")
 
     def test_allows_normal_body(self):
-        reject_secret_content("Harden the allowlist; no secrets here.", "body")
+        for text in (
+            "Harden the allowlist; no secrets here.",
+            "",
+            "Rotate the token weekly; see runbook for key=value config format.",
+        ):
+            # Accepted means: returns None and raises nothing (a raise errors this test).
+            self.assertIsNone(reject_secret_content(text, "body"))
 
 
 class ClaimInputValidationTests(unittest.TestCase):
@@ -524,6 +530,41 @@ class FakeGitHub:
         raise AssertionError(f"unexpected gh args: {args}")
 
 
+def _racing_gh(issue: dict, fake: "FakeGitHub"):
+    """Fake gh that inserts an earlier competing claim just before our comment lands."""
+
+    raced: list[bool] = []
+
+    def racing_gh(args: list[str]) -> str:
+        # Only the first comment (our claim) races; the later release comment does not.
+        if args[:2] == ["issue", "comment"] and not raced:
+            raced.append(True)
+            issue["comments"].insert(
+                0,
+                {
+                    "id": 0,
+                    "body": format_claim_body(
+                        claim_id=str(uuid.uuid4()),
+                        lane="lane:compute",
+                        worker="bob",
+                        branch="issue/7-bob",
+                        stamp="2026-01-01T00:00:00Z",
+                    ),
+                    "createdAt": "2026-01-01T00:00:00Z",
+                },
+            )
+        return fake(args)
+
+    return racing_gh
+
+
+def _fixed_issue_gh(payload: dict):
+    def fake(_args: list[str]) -> str:
+        return json.dumps(payload)
+
+    return fake
+
+
 class ClaimRaceTests(unittest.TestCase):
     def tearDown(self):
         set_command_runners(gh=None, git=None)
@@ -602,28 +643,7 @@ class ClaimRaceTests(unittest.TestCase):
         """Simulate TOCTOU: preflight clean, then another claim appears as earlier winner."""
         issue = self._open_issue()
         fake = FakeGitHub(issue)
-        original = fake.__call__
-
-        def racing_gh(args: list[str]) -> str:
-            if args[:2] == ["issue", "comment"]:
-                # Insert an earlier competing claim before our comment lands.
-                competitor = str(uuid.uuid4())
-                issue["comments"].insert(
-                    0,
-                    {
-                        "id": 0,
-                        "body": format_claim_body(
-                            claim_id=competitor,
-                            lane="lane:compute",
-                            worker="bob",
-                            branch="issue/7-bob",
-                            stamp="2026-01-01T00:00:00Z",
-                        ),
-                        "createdAt": "2026-01-01T00:00:00Z",
-                    },
-                )
-            return original(args)
-
+        racing_gh = _racing_gh(issue, fake)
         set_command_runners(gh=racing_gh)
         taxonomy = load_taxonomy()
         with self.assertRaisesRegex(IssueError, "claim race lost"):
@@ -648,6 +668,10 @@ class ClaimRaceTests(unittest.TestCase):
         ]
         self.assertEqual(len(releases), 1)
         self.assertEqual(claim_winner(issue)["body"].count("worker=bob"), 1)
+        # The loser never takes the label and bob's claim is the only active one.
+        self.assertNotIn("status:wip", {label["name"] for label in issue["labels"]})
+        self.assertEqual(len(active_claims(issue)), 1)
+        self.assertIn("worker=bob", active_claims(issue)[0]["body"])
 
 
 class ListAndReleaseTests(unittest.TestCase):
@@ -893,18 +917,15 @@ class UntrustedIssueTextTests(unittest.TestCase):
     def test_pr_draft_quotes_a_hostile_title(self):
         hostile = 'ok"; touch pwned; echo "'
 
-        def fake(_args: list[str]) -> str:
-            return json.dumps(
-                {
-                    "number": 7,
-                    "title": hostile,
-                    "body": "remember $(id) `uname` ; ../etc/passwd",
-                    "state": "OPEN",
-                    "labels": [],
-                }
-            )
+        payload = {
+            "number": 7,
+            "title": hostile,
+            "body": "remember $(id) `uname` ; ../etc/passwd",
+            "state": "OPEN",
+            "labels": [],
+        }
 
-        set_command_runners(gh=fake)
+        set_command_runners(gh=_fixed_issue_gh(payload))
         draft = build_pr_draft(issue=7)
         argv = shlex.split(draft["gh_command"])
         self.assertEqual(argv[:5], ["gh", "pr", "create", "--base", "main"])
@@ -913,6 +934,12 @@ class UntrustedIssueTextTests(unittest.TestCase):
         self.assertNotIn("pwned", argv)
         self.assertNotIn("$(id)", draft["gh_command"])
         self.assertNotIn("`uname`", draft["gh_command"])
+        self.assertEqual(argv, draft["gh_argv"])
+        # The whole hostile title is one argv element, shell-quoted in the command.
+        self.assertEqual(argv[argv.index("--title") + 1], f"{hostile} (#7)")
+        self.assertEqual(sum(1 for item in argv if "touch" in item), 1)
+        self.assertNotIn(f"--title {hostile}", draft["gh_command"])
+        self.assertIn("'", draft["gh_command"])
 
     def _draft(self, title: str) -> dict:
         def fake(_args: list[str]) -> str:

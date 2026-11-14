@@ -71,6 +71,24 @@ class WipLimitTests(unittest.TestCase):
             )
 
 
+def _velocity_gh(open_issue: dict):
+    """Fake gh for velocity_report; kept outside the test so the test body holds the assertions."""
+
+    def gh(args: list[str]) -> str:
+        if args[:2] == ["issue", "list"]:
+            state = args[args.index("--state") + 1]
+            if state == "open":
+                return json.dumps([open_issue])
+            return json.dumps([])
+        if args[:2] == ["issue", "view"]:
+            return json.dumps(open_issue)
+        if args[:2] == ["pr", "list"]:
+            return json.dumps([])
+        raise AssertionError(args)
+
+    return gh
+
+
 class VelocityUnitTests(unittest.TestCase):
     def test_first_claim_timestamp(self):
         claim_id = "11111111-1111-1111-1111-111111111111"
@@ -113,25 +131,35 @@ class VelocityUnitTests(unittest.TestCase):
             "url": "https://example.test/issues/1",
         }
 
-        def gh(args: list[str]) -> str:
-            if args[:2] == ["issue", "list"]:
-                state = args[args.index("--state") + 1]
-                if state == "open":
-                    return json.dumps([open_issue])
-                return json.dumps([])
-            if args[:2] == ["issue", "view"]:
-                return json.dumps(open_issue)
-            if args[:2] == ["pr", "list"]:
-                return json.dumps([])
-            raise AssertionError(args)
-
-        set_command_runners(gh=gh)
+        set_command_runners(gh=_velocity_gh(open_issue))
         report = velocity_report(
             days=14, now=datetime(2026, 1, 5, tzinfo=UTC)
         )
         self.assertEqual(report["summary"]["open_wip_count"], 1)
         self.assertEqual(report["summary"]["stale_wip_count"], 1)
         self.assertEqual(len(report["p0_p1_open_aging"]), 1)
+        self.assertEqual(
+            set(report["summary"]),
+            {
+                "open_wip_count",
+                "open_in_review_count",
+                "stale_wip_count",
+                "median_claim_to_close_hours",
+                "median_claim_to_merge_hours",
+                "samples_claim_to_close",
+                "samples_claim_to_merge",
+            },
+        )
+        self.assertEqual(report["summary"]["open_in_review_count"], 0)
+        self.assertEqual(report["summary"]["samples_claim_to_close"], 0)
+        self.assertEqual(report["summary"]["samples_claim_to_merge"], 0)
+        self.assertIsNone(report["summary"]["median_claim_to_close_hours"])
+        self.assertIsNone(report["summary"]["median_claim_to_merge_hours"])
+        self.assertEqual(report["window_days"], 14)
+        self.assertEqual(report["generated_at"], "2026-01-05T00:00:00Z")
+        self.assertEqual([row["issue"] for row in report["open_wip"]], [1])
+        self.assertEqual([row["issue"] for row in report["stale_wip_over_3d"]], [1])
+        self.assertEqual(report["merged_prs"], [])
 
 
 class PrDraftTests(unittest.TestCase):
