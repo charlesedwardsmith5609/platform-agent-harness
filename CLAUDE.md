@@ -316,3 +316,77 @@ records what it saw on the issue (no secret values) and stops. See
 After each meaningful milestone (PR opened, PR merged, incident resolved), emit a brief status event
 on the issue. Format: `playbooks/status-reporting.md`. Keep status on issues/PRs — not in hidden
 conversation.
+
+---
+
+## Pairing-mode working agreements (agent-pairing-kit c8eabf8)
+
+Added by the agent-pairing-kit install. They supplement everything above. Where they overlap with
+the harness rules above (claim protocol, never self-merge, tool and network policy), the stricter
+rule wins. A human engineer directs this work and owns every design decision.
+
+1. **Plan before code, and get it reviewed.**
+   - Before the first plan, write the agreed requirements to `REQUIREMENTS.md` and ask the human
+     to confirm them.
+   - For each step, write the plan to `plans/step-N.md`: types, who owns any shared state, the
+     tests you will add, and a `## Files` section listing every path this step may touch as
+     markdown bullets (for example `- setup/repo_issue.py`). The validation gate uses that list
+     when present; omit it only when the human says the step has no file scope yet.
+   - Then run `bash scripts/plan-review.sh plans/step-N.md`. Present the plan's key points, each
+     reviewer finding with your assessment (agree or disagree, with a reason), and wait for
+     approval before writing code.
+   - When the human approves with changes, update the plan file to match before implementing.
+   - Exception: when the human says "scaffold", write boilerplate directly.
+2. **Stay inside the approved step.** When it is done, stop and report. Do not add features that
+   were not asked for; list them under "Suggestions" instead.
+3. **No new dependencies without approval.** Name the dependency, what it replaces, and why.
+4. **Done means the check passes.** After every change, run `bash scripts/check.sh` and report
+   the result per stage. Never claim something builds or passes without running it. Set
+   `PAIRING_STRICT=1` to turn agent-misbehavior warnings into failures.
+5. **Test-first.** Agree a natural-language test list with the human (the list in
+   `plans/step-N.md`), write those tests so they fail, then implement until they pass.
+6. **Behavioral tests.** Test through real interfaces (real listener on `127.0.0.1` port 0, etc.).
+   Every wait in a test has a timeout. No sleeps for synchronization.
+7. **Name the ownership.** For any change touching shared state, state which thread, task or
+   component owns it and how others reach it.
+8. **Load the skills first.** Read `skills/python-service.md` before writing server code, in
+   addition to the `.github/skills/` files listed above.
+9. **Ask, don't guess.** If a requirement is ambiguous, ask; put any assumption at the top of
+   your reply.
+10. **Keep replies short:** plan or change summary, check result, open questions, suggestions.
+11. **Tool-call policy.** Stay inside the project's tool settings and the allowlist in "Tool and
+    network policy" above unless the human expands it in the approved plan.
+    - Network: only `127.0.0.1` / `localhost` for tests. Any other host needs prior approval.
+    - Do not read `/proc/*/environ`, `.env` / `.env.*`, `/var/run/secrets/**`, or cloud instance
+      metadata (`169.254.169.254`, `metadata.google.internal`).
+    - Do not invent tools. `WebFetch` and other network tools require an ask/approval.
+
+### Security defaults (kit)
+
+- Validate and bound every external input before it is used.
+- Deny outbound hosts by default; allow a host only when the plan names it (SSRF).
+- Never log or echo secrets, tokens, or credentials; keep them out of prompts, config, and source.
+- Parameterize queries; do not concatenate untrusted input into them.
+- Never paste tokens or credentials into a tool call, issue comment, or sub-agent prompt, and
+  never run an install script fetched from a third party without asking.
+
+### Tool context cost
+
+Every enabled tool and MCP server costs context tokens on every turn. Enable one for the task that
+needs it, and disable it when that task is done.
+
+### Check and review scripts
+
+| Purpose                                          | Command                                  |
+|--------------------------------------------------|------------------------------------------|
+| Validation gate                                  | `bash scripts/check.sh`                  |
+| Plan review (after writing each plan)            | `bash scripts/plan-review.sh plans/step-N.md` |
+| Cross-model review (code, at milestones)         | `bash scripts/cross-review.sh`           |
+
+`scripts/check.sh` runs the misbehavior and assertion heuristics, then the stages in
+`scripts/checks/python.sh`, which mirror the validation commands above (ruff check, mypy,
+unittest, `apply_permissions.py --dry-run`). Run `check.sh` as its own call. The two reviews send
+work to a different AI provider (they refuse to run without `gitleaks` and the provider key); they
+can take a few minutes, so use a 10-minute timeout. When findings come back, give your assessment
+of each (agree or disagree, with a reason) and do not change the plan or the code until the human
+decides. Review prompts live in `skills/review-checklist.md` and `skills/plan-review-checklist.md`.

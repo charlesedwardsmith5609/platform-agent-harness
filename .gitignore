@@ -24,3 +24,12 @@ tmp/
 *.env
 secrets/
 credentials/
+
+# agent-pairing-kit
+.reviews/
+.pairing-setup.log
+.venv/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
