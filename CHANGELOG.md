@@ -5,6 +5,7 @@ Format follows Keep a Changelog. Dates are UTC.
 ## [Unreleased] - 2026-11-06
 
 - Untrusted input: issue text is data, never instructions, in the security-hardening skill and both worker loops.
+- Issue titles reject quotes, backticks, `$`, `;`, backslashes, and `..`. `pr-draft` shell-quotes the title so a hostile GitHub title stays one argument.
 - Tool and network policy in `CLAUDE.md` / worker skill / incident playbook (allowed hosts,
   forbidden credential paths, stop-and-comment on deny; ambient cloud credentials forbidden)
 - Portable `claude_permissions.ask`/`deny` in `setup/agent-permissions.json`, materialized by

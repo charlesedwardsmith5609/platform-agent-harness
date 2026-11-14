@@ -177,9 +177,16 @@ def classification_from_arguments(
     return {"labels": labels, "milestone": milestone, "lane": labels[2]["name"]}
 
 
+# Titles are later placed in a shell command by pr-draft. These characters are data
+# that a shell would treat as syntax. ".." is rejected so a title cannot be a path.
+_TITLE_FORBIDDEN = ('"', "'", "`", "$", ";", "\\", "..")
+
+
 def validate_title(title: str | None) -> str:
     if not isinstance(title, str) or not TITLE_RE.match(title):
         raise IssueError("issue title must be 1-120 printable characters")
+    if any(token in title for token in _TITLE_FORBIDDEN):
+        raise IssueError("issue title must not contain quotes, backticks, $, ;, backslash, or ..")
     return title
 
 

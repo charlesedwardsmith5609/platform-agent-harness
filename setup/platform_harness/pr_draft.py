@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import shlex
 from pathlib import Path
 
 from .github_remote import label_name_set, view_issue_number
@@ -72,14 +73,15 @@ Blast radius: [one line]
 Next: coordinator review
 """
     pr_title = f"{title} (#{number})"
+    body_name = f"pr-{number}.issue-body.local.md"
     return {
         "issue": number,
         "lane": lane,
         "title": pr_title,
         "body": body.strip() + "\n",
         "gh_command": (
-            f'gh pr create --base main --title "{pr_title}" '
-            f'--body-file pr-{number}.issue-body.local.md'
+            "gh pr create --base main --title "
+            f"{shlex.quote(pr_title)} --body-file {shlex.quote(body_name)}"
         ),
         "hint": (
             f"Write the body to pr-{number}.issue-body.local.md (gitignored), "

@@ -1,4 +1,5 @@
 import json
+import shlex
 import sys
 import unittest
 import uuid
@@ -28,8 +29,10 @@ from platform_harness.cli import build_parser
 from platform_harness.cli import main as cli_main
 from platform_harness.doctor import run_doctor
 from platform_harness.issue_ops import list_issues, release_issue
+from platform_harness.pr_draft import build_pr_draft
 from platform_harness.runtime import REPOSITORY_ROOT
 from platform_harness.taxonomy import (
+    ignored_issue_file,
     reject_secret_content,
     validate_claim_branch,
     validate_claim_worker,
@@ -708,6 +711,58 @@ class TelemetryTests(unittest.TestCase):
                     os.environ.pop("HARNESS_TELEMETRY", None)
                 else:
                     os.environ["HARNESS_TELEMETRY"] = previous_flag
+
+
+class UntrustedIssueTextTests(unittest.TestCase):
+    def tearDown(self):
+        set_command_runners(gh=None, git=None)
+
+    def test_title_rejects_shell_and_path_metacharacters(self):
+        samples = [
+            'say "hi"',
+            "say 'hi'",
+            "run `id`",
+            "run $(id)",
+            "a; rm -rf /",
+            "a\nb",
+            "look ../etc/passwd",
+            "slash \\ path",
+        ]
+        for sample in samples:
+            with self.subTest(sample=sample):
+                with self.assertRaises(IssueError):
+                    validate_title(sample)
+        self.assertEqual(validate_title("OTel collector dropping spans"), "OTel collector dropping spans")
+
+    def test_body_file_rejects_parent_traversal(self):
+        with self.assertRaises(IssueError):
+            ignored_issue_file(REPOSITORY_ROOT, "../etc/passwd", "issue body file")
+        with self.assertRaises(IssueError):
+            ignored_issue_file(REPOSITORY_ROOT, "setup/../../etc/passwd", "issue body file")
+
+    def test_pr_draft_quotes_a_hostile_title(self):
+        hostile = 'ok"; touch pwned; echo "'
+
+        def fake(_args: list[str]) -> str:
+            return json.dumps(
+                {
+                    "number": 7,
+                    "title": hostile,
+                    "body": "remember $(id) `uname` ; ../etc/passwd",
+                    "state": "OPEN",
+                    "labels": [],
+                }
+            )
+
+        set_command_runners(gh=fake)
+        draft = build_pr_draft(issue=7)
+        argv = shlex.split(draft["gh_command"])
+        self.assertEqual(argv[:5], ["gh", "pr", "create", "--base", "main"])
+        self.assertIn(f"{hostile} (#7)", argv)
+        self.assertNotIn("touch", argv)
+        self.assertNotIn("pwned", argv)
+        self.assertNotIn("$(id)", draft["gh_command"])
+        self.assertNotIn("`uname`", draft["gh_command"])
 
 
 if __name__ == "__main__":
