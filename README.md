@@ -40,7 +40,15 @@ not in invisible conversation. Any agent on any machine can read the state and c
 ## Repository structure
 
 ```
-CLAUDE.md                          # Main agent instructions (read this first)
+CLAUDE.md                          # Main agent instructions (read this first); ends with the kit's pairing-mode agreements
+CHANGELOG.md  DECISIONS.md  REQUIREMENTS.md  SECURITY.md  CONTRIBUTING.md
+plans/                             # step-N.md plans written before code (pairing mode)
+scripts/                           # agent-pairing-kit helpers: check.sh (validation gate), plan-review.sh, cross-review.sh/.ps1
+skills/                            # kit skills: python-service.md, review-checklist.md, plan-review-checklist.md
+.claude/
+  settings.json                    # Kit project settings: connectors/artifacts off, WebFetch asks, short deny list
+  commands/                        # /check, /plan-review, /cross-review
+.pairing-profiles                  # Languages/directories scripts/check.sh runs
 .github/
   skills/
     workflow/
@@ -91,10 +99,15 @@ docs/
 tests/
   test_repo_issue.py               # Taxonomy, permissions, and claim-race unit tests
   test_velocity_features.py        # WIP limits, velocity, pr-draft, doctor score, PR gate
+  test_issue_mutations.py          # Issue mutation operations
 .github/workflows/
   harness-ci.yml                   # ruff + mypy + unittest + taxonomy/permission sanity
   pr-gate.yml                      # Coordination hygiene gate on pull requests
 ```
+
+**Validation:** `bash scripts/check.sh` runs ruff, mypy, unittest and
+`apply_permissions.py --dry-run` plus the kit heuristics, and prints `CHECK PASSED` on success.
+CI (`harness-ci.yml`) runs the same four checks directly.
 
 **Velocity features:** per-lane `wip_limit`, `repo_issue.py velocity|pr-draft|sweep-stale|scaffold`,
 `doctor --target` adoption scores, and PR gate checks for `Closes #` / blast radius / foundation paths.
@@ -143,6 +156,12 @@ Apply portable permissions only when the human asks:
 python setup/apply_permissions.py --dry-run
 python setup/apply_permissions.py
 ```
+
+This writes gitignored `.claude/settings.local.json` and `.cursor/permissions.local.json`. It is
+separate from the committed kit file `.claude/settings.json`; see
+[`setup/permissions-setup.md`](setup/permissions-setup.md#relation-to-claudesettingsjson-kit),
+including how the two sources differ. The sync tool does not copy `scripts/`,
+`skills/` or `.claude/settings.json` into consumer repos.
 
 **4. Adapt docs/STATUS.md** (already present after sync of identity, or write it if the consumer had none).
 

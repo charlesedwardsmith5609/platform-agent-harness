@@ -14,6 +14,8 @@ python -m unittest discover -s tests -v
 python setup/apply_permissions.py --dry-run
 ```
 
+`bash scripts/check.sh` runs these four checks plus the kit heuristics and prints `CHECK PASSED`.
+
 ## Guidelines
 
 - Add or update tests with behavior changes.

@@ -42,6 +42,24 @@ Adoption on a real infra repo has not started yet.
   token validation.
 - Claim `--worker` / `--branch` reject newlines and path escapes so CLAIM comments cannot smuggle
   harness markers. OpenAI/Anthropic key shapes added to body secret heuristics.
+- **Tool/network policy (2026-11-06)** — `CLAUDE.md` + worker skill + incident playbook document
+  allowed hosts, forbidden credential/metadata paths, stop-and-comment on deny, and no ambient
+  cloud credentials. `setup/agent-permissions.json` ships Claude `ask` (`WebFetch`) / `deny`
+  defaults via `apply_permissions.py` (pairing-kit-aligned). Threat model: deny/ask are not a
+  sandbox; Bash can bypass `Read` unless Bash patterns match.
+- **`pull_request_target` audit (2026-11-06)** — grepped `github-actions/` and
+  `.github/workflows/`: **none present**. Live workflows use `pull_request` / `push`; the OIDC
+  example uses `workflow_dispatch` only. No change required for the Dec 2 public-repo default
+  block.
+
+- **PR #24 review fixes (2026-11-14)** — body/rationale/reason files must end in `.local.md` and
+  contain no symlink component; the allowlist drops `git remote/pull/stash/worktree/branch`
+  prefixes and narrows `unittest`; `Read` denies use `//` absolute paths; title filter narrowed;
+  `pr-draft` adds `gh_argv` and Windows quoting. See `CHANGELOG.md` and `DECISIONS.md`.
+- **agent-pairing-kit installed (2026-11-14, kit `c8eabf8`)** — `scripts/`, `skills/`,
+  `.claude/commands/`, `.claude/settings.json`, `.pairing-profiles`, and the pairing-mode section
+  of `CLAUDE.md`. The kit's `.claude/settings.json` is a separate, shorter source than
+  `agent-permissions.json` (see `setup/permissions-setup.md`); its two `Read` denies now use `//`.
 
 ## Trial notes / friction
 
@@ -88,6 +106,7 @@ python -m mypy
 python -m unittest discover -s tests -v
 python setup/apply_permissions.py --dry-run
 python setup/repo_issue.py doctor --offline
+bash scripts/check.sh   # ruff, mypy, unittest, dry-run + kit heuristics; prints CHECK PASSED
 ```
 
 Useful velocity commands (need `gh` when not offline):

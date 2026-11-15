@@ -13,20 +13,18 @@
             "gh pr diff:*",
             "gh pr list:*",
             "git add:*",
-            "git branch:*",
+            "git branch --list",
+            "git branch --show-current",
             "git commit:*",
             "git diff:*",
             "git fetch:*",
             "git log:*",
             "git ls-files:*",
-            "git pull:*",
-            "git remote:*",
+            "git remote -v",
             "git rev-parse:*",
             "git show:*",
-            "git stash:*",
             "git status:*",
             "git switch:*",
-            "git worktree:*",
             "python setup/apply_permissions.py:*",
             "python setup/claim_concurrency_drill.py:*",
             "python setup/create_labels.py:*",
@@ -34,7 +32,6 @@
             "python setup/sync_harness_to_repo.py:*",
             "python setup/pr_gate.py:*",
             "python setup/trial_local.py:*",
-            "python -m unittest:*",
             "python3 setup/apply_permissions.py:*",
             "python3 setup/claim_concurrency_drill.py:*",
             "python3 setup/create_labels.py:*",
@@ -42,7 +39,10 @@
             "python3 setup/sync_harness_to_repo.py:*",
             "python3 setup/pr_gate.py:*",
             "python3 setup/trial_local.py:*",
-            "python3 -m unittest:*"
+            "python -m unittest discover -s tests",
+            "python -m unittest discover -s tests:*",
+            "python3 -m unittest discover -s tests",
+            "python3 -m unittest discover -s tests:*"
           ]
         },
         {
@@ -53,5 +53,41 @@
         "REPLACE_WITH_YOUR_REPO_GIT_ROOT"
       ]
     }
+  },
+  "claude_permissions": {
+    "ask": [
+      "WebFetch"
+    ],
+    "deny": [
+      "Read(//proc/**/environ)",
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(~/.ssh/**)",
+      "Read(**/.ssh/**)",
+      "Read(**/.aws/credentials)",
+      "Read(**/.aws/config)",
+      "Read(**/.azure/**)",
+      "Read(**/gcloud/application_default_credentials.json)",
+      "Read(**/gcloud/credentials.db)",
+      "Read(//var/run/secrets/**)",
+      "Bash(curl *169.254.169.254*)",
+      "Bash(wget *169.254.169.254*)",
+      "Bash(curl *metadata.google.internal*)",
+      "Bash(wget *metadata.google.internal*)",
+      "Bash(cat */.env*)",
+      "Bash(cat */.aws/credentials*)",
+      "Bash(cat */.aws/config*)",
+      "Bash(cat */.ssh/*)",
+      "Bash(head */.env*)",
+      "Bash(head */.aws/credentials*)",
+      "Bash(head */.aws/config*)",
+      "Bash(head */.ssh/*)",
+      "Bash(git diff *--output*)",
+      "Bash(git log *--output*)",
+      "Bash(git show *--output*)",
+      "Bash(git diff *--no-index*)",
+      "Bash(git fetch *--upload-pack*)",
+      "Bash(git fetch *--exec*)"
+    ]
   }
 }

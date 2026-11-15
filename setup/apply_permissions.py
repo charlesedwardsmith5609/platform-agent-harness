@@ -34,6 +34,9 @@ def load_source() -> dict:
         raise IssueError(
             "permission source must define exactly one location: REPLACE_WITH_YOUR_REPO_GIT_ROOT"
         )
+    claude_permissions = document.get("claude_permissions")
+    if claude_permissions is not None and not isinstance(claude_permissions, dict):
+        raise IssueError("claude_permissions must be an object when present")
     return document
 
 
@@ -52,6 +55,14 @@ def substitute_placeholder(value, root: Path):
     if isinstance(value, dict):
         return {key: substitute_placeholder(item, root) for key, item in value.items()}
     return value
+
+
+def _string_list(value, field: str) -> list[str]:
+    if value is None:
+        return []
+    if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
+        raise IssueError(f"claude_permissions.{field} must be a list of non-empty strings")
+    return list(value)
 
 
 def materialize(root: Path, document: dict) -> tuple[dict, dict]:
@@ -88,11 +99,23 @@ def materialize(root: Path, document: dict) -> tuple[dict, dict]:
             raise IssueError(f"permission source must not auto-approve {identifier}")
         if identifier.startswith(("python -c", "python3 -c", "gh api ")):
             raise IssueError(f"permission source must not auto-approve {identifier}")
-    claude = {
-        "permissions": {
-            "allow": [command_to_claude(item) for item in identifiers],
-        }
+    raw_claude = document.get("claude_permissions")
+    if raw_claude is None:
+        claude_permissions: dict = {}
+    elif not isinstance(raw_claude, dict):
+        raise IssueError("claude_permissions must be an object when present")
+    else:
+        claude_permissions = raw_claude
+    ask = _string_list(claude_permissions.get("ask"), "ask")
+    deny = _string_list(claude_permissions.get("deny"), "deny")
+    permissions: dict = {
+        "allow": [command_to_claude(item) for item in identifiers],
     }
+    if ask:
+        permissions["ask"] = ask
+    if deny:
+        permissions["deny"] = deny
+    claude = {"permissions": permissions}
     return resolved, claude
 
 

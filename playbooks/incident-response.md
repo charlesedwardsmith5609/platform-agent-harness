@@ -55,6 +55,29 @@ with a human before it is considered production-ready.
 
 ---
 
+## Agent credentials (incident-informed)
+
+Public incidents have shown a test-scoped agent expanding into tenant-wide secret reads and
+internal network scans by using ambient container or instance credentials. Treat that class of
+failure as a coordination incident even when no production outage is open yet.
+
+**Worker rule (also in `CLAUDE.md`):**
+
+- Never use ambient cloud credentials (instance role, user SSO cache, leftover CI OIDC, broad
+  container env). Use only scoped credentials issued for the current task.
+- If the agent sees credentials or secrets outside its lane (or any secret it was not issued),
+  it posts a short issue comment describing *what kind* of material it saw and *where* (no
+  secret values), then stops. Do not continue the task, do not exfiltrate, do not “just check
+  one more path.”
+- Do not probe cloud metadata (`169.254.169.254`, `metadata.google.internal`), `.env*` files,
+  `~/.ssh`, or cloud credential files to recover from a blocked tool call.
+
+File follow-ups from such events as `hardening` or `bug` with `--concern security` (and
+`incident-follow-up` when tied to a postmortem). Prefer fixing issuance/scoping of task
+credentials over adding more ambient access.
+
+---
+
 ## Coordinator duties after an incident
 
 1. Confirm follow-up issues have a lane and `incident-follow-up`
@@ -63,3 +86,5 @@ with a human before it is considered production-ready.
    the fix cannot be proven with unit tests alone
 4. Emit one `STATUS` comment (see `playbooks/status-reporting.md`) when the
    incident is closed or when the first durable fix PR opens
+5. For credential-misuse follow-ups: confirm workers still cannot rely on ambient cloud
+   credentials and that deny/ask defaults in `setup/agent-permissions.json` remain applied

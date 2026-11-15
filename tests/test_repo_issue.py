@@ -1,4 +1,7 @@
+import fnmatch
 import json
+import os
+import shlex
 import sys
 import unittest
 import uuid
@@ -28,8 +31,10 @@ from platform_harness.cli import build_parser
 from platform_harness.cli import main as cli_main
 from platform_harness.doctor import run_doctor
 from platform_harness.issue_ops import list_issues, release_issue
+from platform_harness.pr_draft import build_pr_draft
 from platform_harness.runtime import REPOSITORY_ROOT
 from platform_harness.taxonomy import (
+    ignored_issue_file,
     reject_secret_content,
     validate_claim_branch,
     validate_claim_worker,
@@ -113,7 +118,7 @@ class TaxonomyTests(unittest.TestCase):
             )
 
     def test_title_rejects_control_characters(self):
-        with self.assertRaisesRegex(IssueError, "printable"):
+        with self.assertRaisesRegex(IssueError, "control characters"):
             validate_title("bad\ntitle")
         self.assertEqual(
             validate_title("OIDC trust policy missing sub condition"),
@@ -166,12 +171,37 @@ class PermissionSourceTests(unittest.TestCase):
         self.assertNotIn("Bash(gh issue *)", allow)
         self.assertNotIn("Bash(git push *)", allow)
         self.assertNotIn("Bash(gh pr *)", allow)
+        self.assertEqual(claude["permissions"]["ask"], ["WebFetch"])
+        deny = claude["permissions"]["deny"]
+        self.assertIn("Read(//proc/**/environ)", deny)
+        self.assertNotIn("Read(/proc/**/environ)", deny)
+        self.assertIn("Read(//var/run/secrets/**)", deny)
+        self.assertNotIn("Read(/var/run/secrets/**)", deny)
+        self.assertIn("Read(**/.env)", deny)
+        self.assertIn("Read(~/.ssh/**)", deny)
+        self.assertIn("Read(**/.aws/credentials)", deny)
+        self.assertIn("Bash(curl *169.254.169.254*)", deny)
         self.assertEqual(command_to_claude("gh auth status"), "Bash(gh auth status)")
         source_text = (SETUP / "agent-permissions.json").read_text(encoding="utf-8")
         self.assertIn("REPLACE_WITH_YOUR_REPO_GIT_ROOT", source_text)
+        self.assertIn('"claude_permissions"', source_text)
         self.assertNotIn("python:*", source_text)
         self.assertNotIn("git push:*", source_text)
         self.assertNotIn("nme-mcp", source_text)
+
+    def test_materialize_rejects_invalid_claude_permissions(self):
+        document = load_source()
+        document["claude_permissions"] = {"ask": [""], "deny": ["Read(**/.env)"]}
+        with self.assertRaises(IssueError):
+            materialize(Path("E:/example/platform-repo"), document)
+        document = load_source()
+        document["claude_permissions"] = {"ask": ["WebFetch"], "deny": "Read(**/.env)"}
+        with self.assertRaises(IssueError):
+            materialize(Path("E:/example/platform-repo"), document)
+        document = load_source()
+        document["claude_permissions"] = ["WebFetch"]
+        with self.assertRaises(IssueError):
+            materialize(Path("E:/example/platform-repo"), document)
 
     def test_materialize_rejects_broad_python(self):
         document = load_source()
@@ -181,6 +211,129 @@ class PermissionSourceTests(unittest.TestCase):
                 approval["commandIdentifiers"] = ["python:*"]
         with self.assertRaises(IssueError):
             materialize(Path("E:/example/platform-repo"), document)
+
+
+def _allowed(command: str, identifiers: list[str], deny: list[str]) -> bool:
+    """Prefix matcher over the shipped allowlist, then the deny patterns."""
+    for pattern in deny:
+        if pattern.startswith("Bash(") and fnmatch.fnmatchcase(command, pattern[5:-1]):
+            return False
+    for item in identifiers:
+        if item.endswith(":*"):
+            prefix = item[:-2]
+            if command == prefix or command.startswith(prefix + " "):
+                return True
+        elif command == item:
+            return True
+    return False
+
+
+def _shipped_policy() -> tuple[list[str], list[str]]:
+    document = load_source()
+    entry = document["locations"][PLACEHOLDER]
+    identifiers: list[str] = []
+    for approval in entry["tool_approvals"]:
+        if approval.get("kind") == "commands":
+            identifiers.extend(approval["commandIdentifiers"])
+    return identifiers, document["claude_permissions"]["deny"]
+
+
+class AllowlistBypassTests(unittest.TestCase):
+    def test_no_mutating_git_prefixes(self):
+        identifiers, _ = _shipped_policy()
+        for banned in ("git remote:*", "git stash:*", "git worktree:*", "git pull:*", "git branch:*"):
+            self.assertNotIn(banned, identifiers)
+
+    def test_known_bypasses_are_not_allowed(self):
+        identifiers, deny = _shipped_policy()
+        for command in (
+            "git diff --output=x",
+            "git log --output=x",
+            "git show --output=x",
+            "git diff --no-index a b",
+            "git fetch --upload-pack=cmd",
+            "git remote add x y",
+            "git pull origin main",
+            "git branch -D main",
+            "python -m unittest some_writer",
+            "python3 -m unittest some_writer",
+        ):
+            with self.subTest(command=command):
+                self.assertFalse(_allowed(command, identifiers, deny))
+
+    def test_intended_commands_stay_allowed(self):
+        identifiers, deny = _shipped_policy()
+        for command in (
+            "python -m unittest discover -s tests",
+            "python -m unittest discover -s tests -v",
+            "python3 -m unittest discover -s tests -v",
+            "git diff --stat",
+            "git log --oneline",
+            "git fetch origin",
+            "git remote -v",
+            "git branch --show-current",
+        ):
+            with self.subTest(command=command):
+                self.assertTrue(_allowed(command, identifiers, deny))
+
+
+class BodyFileTests(unittest.TestCase):
+    def setUp(self):
+        self.created: list[Path] = []
+
+    def tearDown(self):
+        for path in self.created:
+            if path.is_symlink() or path.is_file():
+                path.unlink()
+            elif path.is_dir():
+                path.rmdir()
+
+    def _make(self, name: str, text: str = "body text\n") -> str:
+        path = REPOSITORY_ROOT / name
+        path.write_text(text, encoding="utf-8")
+        self.created.append(path)
+        return name
+
+    def test_rejects_env_file_without_local_md_suffix(self):
+        for name in (".env", "notes.txt", "x.local.md.bak"):
+            with self.subTest(name=name):
+                rel = self._make(f"{uuid.uuid4().hex[:8]}-{name}" if name != ".env" else "step1.env")
+                with self.assertRaisesRegex(IssueError, r"\.local\.md"):
+                    ignored_issue_file(REPOSITORY_ROOT, rel, "issue body file")
+
+    def test_accepts_issue_body_local_md(self):
+        rel = self._make(f"t{uuid.uuid4().hex[:8]}.issue-body.local.md")
+        self.assertEqual(
+            ignored_issue_file(REPOSITORY_ROOT, rel, "issue body file"),
+            (REPOSITORY_ROOT / rel).resolve(),
+        )
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlinks unavailable")
+    def test_rejects_symlink_to_in_repo_ignored_file(self):
+        target = self._make(f"t{uuid.uuid4().hex[:8]}.issue-body.local.md")
+        link = REPOSITORY_ROOT / f"l{uuid.uuid4().hex[:8]}.issue-body.local.md"
+        try:
+            os.symlink(REPOSITORY_ROOT / target, link)
+        except OSError:
+            self.skipTest("cannot create symlink")
+        self.created.append(link)
+        with self.assertRaisesRegex(IssueError, "physical file"):
+            ignored_issue_file(REPOSITORY_ROOT, link.name, "issue body file")
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlinks unavailable")
+    def test_rejects_symlinked_directory_pointing_outside(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as outside:
+            (Path(outside) / "x.local.md").write_text("hi\n", encoding="utf-8")
+            link = REPOSITORY_ROOT / f"lnk{uuid.uuid4().hex[:8]}"
+            try:
+                os.symlink(outside, link)
+            except OSError:
+                self.skipTest("cannot create symlink")
+            self.created.append(link)
+            with self.assertRaises(IssueError):
+                ignored_issue_file(REPOSITORY_ROOT, f"{link.name}/x.local.md", "issue body file")
 
 
 class SecretContentTests(unittest.TestCase):
@@ -193,7 +346,13 @@ class SecretContentTests(unittest.TestCase):
             reject_secret_content("key=sk-abcdefghijklmnopqrstuvwxyz0123456789", "body")
 
     def test_allows_normal_body(self):
-        reject_secret_content("Harden the allowlist; no secrets here.", "body")
+        for text in (
+            "Harden the allowlist; no secrets here.",
+            "",
+            "Rotate the token weekly; see runbook for key=value config format.",
+        ):
+            # Accepted means: returns None and raises nothing (a raise errors this test).
+            self.assertIsNone(reject_secret_content(text, "body"))
 
 
 class ClaimInputValidationTests(unittest.TestCase):
@@ -371,6 +530,41 @@ class FakeGitHub:
         raise AssertionError(f"unexpected gh args: {args}")
 
 
+def _racing_gh(issue: dict, fake: "FakeGitHub"):
+    """Fake gh that inserts an earlier competing claim just before our comment lands."""
+
+    raced: list[bool] = []
+
+    def racing_gh(args: list[str]) -> str:
+        # Only the first comment (our claim) races; the later release comment does not.
+        if args[:2] == ["issue", "comment"] and not raced:
+            raced.append(True)
+            issue["comments"].insert(
+                0,
+                {
+                    "id": 0,
+                    "body": format_claim_body(
+                        claim_id=str(uuid.uuid4()),
+                        lane="lane:compute",
+                        worker="bob",
+                        branch="issue/7-bob",
+                        stamp="2026-01-01T00:00:00Z",
+                    ),
+                    "createdAt": "2026-01-01T00:00:00Z",
+                },
+            )
+        return fake(args)
+
+    return racing_gh
+
+
+def _fixed_issue_gh(payload: dict):
+    def fake(_args: list[str]) -> str:
+        return json.dumps(payload)
+
+    return fake
+
+
 class ClaimRaceTests(unittest.TestCase):
     def tearDown(self):
         set_command_runners(gh=None, git=None)
@@ -449,28 +643,7 @@ class ClaimRaceTests(unittest.TestCase):
         """Simulate TOCTOU: preflight clean, then another claim appears as earlier winner."""
         issue = self._open_issue()
         fake = FakeGitHub(issue)
-        original = fake.__call__
-
-        def racing_gh(args: list[str]) -> str:
-            if args[:2] == ["issue", "comment"]:
-                # Insert an earlier competing claim before our comment lands.
-                competitor = str(uuid.uuid4())
-                issue["comments"].insert(
-                    0,
-                    {
-                        "id": 0,
-                        "body": format_claim_body(
-                            claim_id=competitor,
-                            lane="lane:compute",
-                            worker="bob",
-                            branch="issue/7-bob",
-                            stamp="2026-01-01T00:00:00Z",
-                        ),
-                        "createdAt": "2026-01-01T00:00:00Z",
-                    },
-                )
-            return original(args)
-
+        racing_gh = _racing_gh(issue, fake)
         set_command_runners(gh=racing_gh)
         taxonomy = load_taxonomy()
         with self.assertRaisesRegex(IssueError, "claim race lost"):
@@ -495,6 +668,10 @@ class ClaimRaceTests(unittest.TestCase):
         ]
         self.assertEqual(len(releases), 1)
         self.assertEqual(claim_winner(issue)["body"].count("worker=bob"), 1)
+        # The loser never takes the label and bob's claim is the only active one.
+        self.assertNotIn("status:wip", {label["name"] for label in issue["labels"]})
+        self.assertEqual(len(active_claims(issue)), 1)
+        self.assertIn("worker=bob", active_claims(issue)[0]["body"])
 
 
 class ListAndReleaseTests(unittest.TestCase):
@@ -686,6 +863,108 @@ class TelemetryTests(unittest.TestCase):
                     os.environ.pop("HARNESS_TELEMETRY", None)
                 else:
                     os.environ["HARNESS_TELEMETRY"] = previous_flag
+
+
+class UntrustedIssueTextTests(unittest.TestCase):
+    def tearDown(self):
+        set_command_runners(gh=None, git=None)
+
+    def test_title_rejects_hostile_input_with_specific_reason(self):
+        cases = [
+            ("a\nb", "control characters"),
+            ("run `id`", "shell metacharacters"),
+            ("run $(id)", "shell metacharacters"),
+            ("run ${HOME}", "shell metacharacters"),
+            ("a; b", "shell metacharacters"),
+            ("a | b", "shell metacharacters"),
+            ("a & b", "shell metacharacters"),
+            ("a > b", "shell metacharacters"),
+            ("a < b", "shell metacharacters"),
+            ("slash \\ path", "shell metacharacters"),
+            ("../x", "path traversal"),
+            ("look ../etc/passwd", "path traversal"),
+            ("a/../b", "path traversal"),
+        ]
+        for sample, reason in cases:
+            with self.subTest(sample=sample):
+                with self.assertRaisesRegex(IssueError, reason):
+                    validate_title(sample)
+
+    def test_title_accepts_ordinary_titles(self):
+        for sample in (
+            "Don't drop spans",
+            'Fix "quoted" name',
+            "Upgrade v1.2..v1.3 notes",
+            "OTel collector dropping spans",
+            "Cost: $5 budget",
+        ):
+            with self.subTest(sample=sample):
+                self.assertEqual(validate_title(sample), sample)
+
+    def test_docs_state_denies_are_a_seatbelt_not_a_sandbox(self):
+        for name in ("docs/guides/permissions-and-security.md", "setup/permissions-setup.md", "SECURITY.md"):
+            with self.subTest(name=name):
+                text = (ROOT / name).read_text(encoding="utf-8").lower()
+                self.assertIn("not a sandbox", text)
+                self.assertIn("seatbelt", text)
+
+    def test_body_file_rejects_parent_traversal(self):
+        with self.assertRaises(IssueError):
+            ignored_issue_file(REPOSITORY_ROOT, "../etc/passwd", "issue body file")
+        with self.assertRaises(IssueError):
+            ignored_issue_file(REPOSITORY_ROOT, "setup/../../etc/passwd", "issue body file")
+
+    def test_pr_draft_quotes_a_hostile_title(self):
+        hostile = 'ok"; touch pwned; echo "'
+
+        payload = {
+            "number": 7,
+            "title": hostile,
+            "body": "remember $(id) `uname` ; ../etc/passwd",
+            "state": "OPEN",
+            "labels": [],
+        }
+
+        set_command_runners(gh=_fixed_issue_gh(payload))
+        draft = build_pr_draft(issue=7)
+        argv = shlex.split(draft["gh_command"])
+        self.assertEqual(argv[:5], ["gh", "pr", "create", "--base", "main"])
+        self.assertIn(f"{hostile} (#7)", argv)
+        self.assertNotIn("touch", argv)
+        self.assertNotIn("pwned", argv)
+        self.assertNotIn("$(id)", draft["gh_command"])
+        self.assertNotIn("`uname`", draft["gh_command"])
+        self.assertEqual(argv, draft["gh_argv"])
+        # The whole hostile title is one argv element, shell-quoted in the command.
+        self.assertEqual(argv[argv.index("--title") + 1], f"{hostile} (#7)")
+        self.assertEqual(sum(1 for item in argv if "touch" in item), 1)
+        self.assertNotIn(f"--title {hostile}", draft["gh_command"])
+        self.assertIn("'", draft["gh_command"])
+
+    def _draft(self, title: str) -> dict:
+        def fake(_args: list[str]) -> str:
+            return json.dumps(
+                {"number": 7, "title": title, "body": "", "state": "OPEN", "labels": []}
+            )
+
+        set_command_runners(gh=fake)
+        return build_pr_draft(issue=7)
+
+    def test_pr_draft_exposes_gh_argv(self):
+        hostile = 'ok"; touch pwned; echo "'
+        draft = self._draft(hostile)
+        self.assertEqual(draft["gh_argv"], shlex.split(draft["gh_command"]))
+        self.assertIn(f"{hostile} (#7)", draft["gh_argv"])
+        self.assertEqual(sum(1 for item in draft["gh_argv"] if "touch" in item), 1)
+
+    def test_pr_draft_command_on_windows_has_no_single_quote_wrapping(self):
+        from unittest import mock
+
+        with mock.patch("platform_harness.pr_draft.os.name", "nt"):
+            draft = self._draft("Fix the thing")
+        self.assertNotIn("'", draft["gh_command"])
+        self.assertIn('"Fix the thing (#7)"', draft["gh_command"])
+        self.assertEqual(draft["gh_argv"][-3], "Fix the thing (#7)")
 
 
 if __name__ == "__main__":

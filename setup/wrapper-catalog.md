@@ -15,7 +15,7 @@ Run one bare executable per tool call. Do not chain with `&&`, pipes, or `cd`.
 | `setup/create_labels.py` | `[--plan] [--label name] [--reconcile]` | Plans, creates, or reconciles only labels declared by `setup/project-taxonomy.json`. |
 | `setup/create-labels.sh` | same | Bash launcher for `create_labels.py`. |
 | `setup/create-labels.ps1` | same | PowerShell launcher for `create_labels.py`. |
-| `setup/apply_permissions.py` | `[--dry-run]` | Resolves the portable permission placeholder into a gitignored local settings file. |
+| `setup/apply_permissions.py` | `[--dry-run]` | Resolves the portable permission placeholder and writes gitignored `.claude/settings.local.json` (`allow`, `ask`, `deny`) and `.cursor/permissions.local.json`; `--dry-run` prints and writes nothing. It does not touch the committed `.claude/settings.json`. |
 | `setup/apply_permissions.ps1` | same | PowerShell launcher for `apply_permissions.py`. |
 | `setup/claim_concurrency_drill.py` | (no args) | Live two-worker claim race drill; expects fail-closed second claim. |
 | `setup/sync_harness_to_repo.py` | `--target <path> [--dry-run] [--force] [--include-identity]` | Copy allowlisted harness files into a consumer infra checkout. `--force` required to replace existing destination directories. |
@@ -68,13 +68,18 @@ blocked per-lane children.
 Structured telemetry is optional: set `HARNESS_TELEMETRY=1` (JSON lines on stderr) and/or
 `AGENT_AUDIT_LOG=<path>` (append JSONL).
 
-Body and rationale files must be physical, repository-local files ignored by Git (use the
-`*.issue-body.local.md` and `*.rationale.local.md` patterns).
+Body, rationale and reason files must end in `.local.md`, be physical repository-local files
+ignored by Git (use the `*.issue-body.local.md` and `*.rationale.local.md` patterns), and have no
+symlink at any path component under the repository root. Titles may not contain control
+characters, shell metacharacters (backtick, `;`, `|`, `&`, `<`, `>`, backslash, `$(`, `${`) or
+`../` segments. `pr-draft` returns `gh_command` (shell-quoted; Windows quoting on `nt`) and the
+portable `gh_argv` list.
 
 ## Still human or coordinator-owned
 
 Pull request merge, foundation changes, and GitHub milestone creation remain explicit coordinator
 or human operations. Validation stays as documented in `CLAUDE.md` — run each command as its own
-call. In this harness repo that is `python -m unittest discover -s tests -v`, not pytest.
+call. In this harness repo that is `python -m unittest discover -s tests -v`, not pytest;
+`bash scripts/check.sh` runs the full set in one gate.
 
 PR hygiene is machine-checked by `.github/workflows/pr-gate.yml` (via `setup/pr_gate.py`).
