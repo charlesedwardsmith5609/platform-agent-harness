@@ -830,6 +830,14 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("taxonomy", names)
         self.assertIn("sync_allowlist_paths", names)
 
+    def test_doctor_prints_server_settings_reminder_without_network(self):
+        report = run_doctor(probe_github=False)
+        reminder = report["reminder"]
+        self.assertIn("Enforce it on the server", reminder)
+        self.assertIn("CODEOWNERS", reminder)
+        self.assertIn("branch protection", reminder)
+        self.assertTrue(report["ok"], report)
+
     def test_doctor_cli_offline(self):
         code = cli_main(["doctor", "--offline"])
         self.assertEqual(code, 0)
@@ -907,6 +915,49 @@ class UntrustedIssueTextTests(unittest.TestCase):
                 text = (ROOT / name).read_text(encoding="utf-8").lower()
                 self.assertIn("not a sandbox", text)
                 self.assertIn("seatbelt", text)
+
+    def _enforce_section(self) -> str:
+        text = (ROOT / "docs/guides/trial-install.md").read_text(encoding="utf-8")
+        marker = "## Enforce it on the server"
+        self.assertIn(marker, text)
+        rest = text.split(marker, 1)[1]
+        return rest.split("\n## ", 1)[0]
+
+    def test_trial_guide_enforce_section_states_seatbelt_and_cites_claude_md(self):
+        section = self._enforce_section()
+        self.assertIn("seatbelt", section.lower())
+        self.assertIn("CLAUDE.md", section)
+
+    def test_trial_guide_enforce_section_has_verification_commands(self):
+        section = self._enforce_section()
+        for needle in (
+            "branches/main/protection",
+            "collaborators/",
+            "/permission",
+            "contents/.github/CODEOWNERS",
+            "codeowners/errors",
+        ):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, section)
+
+    def test_trial_guide_enforce_section_names_protected_paths(self):
+        section = self._enforce_section()
+        for path in (
+            "setup/",
+            ".github/CODEOWNERS",
+            "foundation/terraform/modules/",
+            "foundation/oidc-trust/",
+            "foundation/base-images/",
+            "foundation/slo-framework/",
+            "foundation/network-policy/",
+        ):
+            with self.subTest(path=path):
+                self.assertIn(path, section)
+
+    def test_trial_guide_enforce_section_states_merge_restriction_separately(self):
+        section = self._enforce_section()
+        self.assertIn("Restrict updates", section)
+        self.assertIn("fork", section.lower())
 
     def test_body_file_rejects_parent_traversal(self):
         with self.assertRaises(IssueError):

@@ -150,6 +150,14 @@ def _adoption_checks(target: Path) -> list[dict]:
     return checks
 
 
+SERVER_SETTINGS_REMINDER = (
+    "Reminder (not checked, no network): permission files are a seatbelt, not a sandbox. "
+    "Confirm on GitHub: branch protection with required reviews on main, an agent token "
+    "without merge or admin rights, and CODEOWNERS for setup/ and the foundation paths. "
+    "See docs/guides/trial-install.md, 'Enforce it on the server'."
+)
+
+
 def run_doctor(
     *,
     probe_github: bool = True,
@@ -182,4 +190,5 @@ def run_doctor(
         "score": score,
         "repository_root": str(root),
         "checks": checks,
+        "reminder": SERVER_SETTINGS_REMINDER,
     }
