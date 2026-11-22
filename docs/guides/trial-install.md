@@ -89,8 +89,71 @@ gitignored trial body templates, and (with `--worktree`) creates
    coordination-only smoke test.
 10. **Record friction** in `docs/STATUS.md` under Active initiatives / trial notes.
 
+## Enforce it on the server
+
+The permission files (`setup/agent-permissions.json`, `.claude/settings.json`) are a seatbelt,
+not a sandbox (`CLAUDE.md`, "Tool and network policy"). The GitHub settings below are the
+control. They enforce "Never self-merge" (`CLAUDE.md`, Guardrails and Worker loop) and the
+coordinator-owned shared foundation (`CLAUDE.md`, "Shared foundation"). The coordinator sets
+them in the repository settings; no script in this repo sets or runs the checks below.
+
+1. **Branch protection on `main`**: require a pull request, at least one approving review, code
+   owner review, dismiss stale approvals, include administrators, and block force pushes and
+   deletions. A repository ruleset with the same rules is an equivalent alternative.
+2. **Agent identity without merge or admin rights.** The agent uses its own account or app,
+   never the coordinator's, with a fine-grained token scoped to this one repository (or its
+   fork). It is on no bypass list. Required reviews alone do not stop merging, because a Write
+   role can merge an approved PR. State the merge restriction separately, in one of two ways:
+   - (a) Restrict who can update `main` to the coordinator: a ruleset "Restrict updates" rule
+     with only the coordinator on the bypass list, or, on organization repositories, branch
+     protection "Restrict who can push to matching branches". The agent keeps Write so it can
+     push its `issue/<n>-<slug>` branches.
+   - (b) Fork workflow: the agent has Read or Triage on the main repository, pushes to its own
+     fork and opens PRs from there, so it has no merge right at all.
+3. **CODEOWNERS** in `.github/CODEOWNERS`, owned by the coordinator, so changes to these paths
+   need the coordinator's review (the owner needs Write access for the review to count):
+
+   ```text
+   /setup/                              @coordinator
+   /.github/CODEOWNERS                  @coordinator
+   /.github/                            @coordinator
+   /foundation/terraform/modules/       @coordinator
+   /foundation/oidc-trust/              @coordinator
+   /foundation/base-images/             @coordinator
+   /foundation/slo-framework/           @coordinator
+   /foundation/network-policy/          @coordinator
+   ```
+
+   `setup/` covers `setup/project-taxonomy.json` and `setup/platform_harness/`. The five
+   `foundation/` paths exist in a fleet repo only (`CLAUDE.md`, "Shared foundation").
+
+**Verify by hand.** The coordinator runs these; do not add them to a script.
+
+```bash
+# Branch protection: check required_pull_request_reviews.required_approving_review_count,
+# require_code_owner_reviews, dismiss_stale_reviews, enforce_admins.enabled, restrictions
+gh api repos/{owner}/{repo}/branches/main/protection
+# Or, if you use rulesets (active rules only):
+gh api repos/{owner}/{repo}/rules/branches/main
+# Agent role: role_name must not be maintain or admin; with option (a) write is fine,
+# with option (b) it should be read or triage
+gh api repos/{owner}/{repo}/collaborators/{agent-login}/permission
+# CODEOWNERS content: read it for the protected paths and the coordinator handle
+gh api repos/{owner}/{repo}/contents/.github/CODEOWNERS -H "Accept: application/vnd.github.raw"
+# CODEOWNERS syntax only: an empty errors list proves it parses, not that paths are covered
+gh api repos/{owner}/{repo}/codeowners/errors
+```
+
+Endpoint names and the response fields above were checked against the GitHub REST
+documentation on 2026-11-21. The `restrictions` field and push restrictions are organization-only
+(personal-account repositories use a ruleset or the fork workflow); that the "Restrict updates"
+ruleset rule is available on a given plan is not verified here: confirm in the repository
+settings.
+
 ## Success criteria
 
+- Branch protection, an agent identity without merge or admin rights, and CODEOWNERS are on and
+  verified with the `gh api` checks in "Enforce it on the server"
 - Labels from taxonomy exist on GitHub
 - At least one milestone exists and matches taxonomy names
 - At least one issue was created **only** via `setup/repo_issue.py`

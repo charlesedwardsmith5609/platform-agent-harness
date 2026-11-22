@@ -2,6 +2,10 @@
 
 Format follows Keep a Changelog. Dates are UTC.
 
+## [Unreleased] - 2026-11-20
+
+- Docs (step 4): `docs/guides/trial-install.md` gets an "Enforce it on the server" section (branch protection, agent identity without merge or admin rights, CODEOWNERS, hand-run `gh api` checks) and a Success-criteria bullet; four docs tests in `tests/test_repo_issue.py`. No code, script or permission-file change.
+
 ## [Unreleased] - 2026-11-14
 
 - Review fixes (PR #24, step 3): the symlink check in `ignored_issue_file` now runs on the unresolved path (it was dead after `resolve()`) and rejects a symlink at any path component under the repository root, including symlinked parent directories; `pr-draft` adds `gh_argv` and builds `gh_command` with `shlex.join` on POSIX and `subprocess.list2cmdline` on `nt`.
