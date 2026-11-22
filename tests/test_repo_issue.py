@@ -830,6 +830,14 @@ class DoctorTests(unittest.TestCase):
         self.assertIn("taxonomy", names)
         self.assertIn("sync_allowlist_paths", names)
 
+    def test_doctor_prints_server_settings_reminder_without_network(self):
+        report = run_doctor(probe_github=False)
+        reminder = report["reminder"]
+        self.assertIn("Enforce it on the server", reminder)
+        self.assertIn("CODEOWNERS", reminder)
+        self.assertIn("branch protection", reminder)
+        self.assertTrue(report["ok"], report)
+
     def test_doctor_cli_offline(self):
         code = cli_main(["doctor", "--offline"])
         self.assertEqual(code, 0)
