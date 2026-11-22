@@ -4,6 +4,7 @@ Format follows Keep a Changelog. Dates are UTC.
 
 ## [Unreleased] - 2026-11-20
 
+- Added `.github/CODEOWNERS` (setup/, .github/, the five foundation paths); branch protection is still the owner's step, noted in the trial-install guide.
 - `doctor` reports a static `reminder` about server-side settings (branch protection, agent token without merge/admin, CODEOWNERS), offline and unchecked; test added (step 5).
 - Docs (step 4): `docs/guides/trial-install.md` gets an "Enforce it on the server" section (branch protection, agent identity without merge or admin rights, CODEOWNERS, hand-run `gh api` checks) and a Success-criteria bullet; four docs tests in `tests/test_repo_issue.py`. No code, script or permission-file change.
 

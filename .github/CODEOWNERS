@@ -1,0 +1,10 @@
+# Coordinator-owned paths (CLAUDE.md, "Shared foundation"). Requires branch protection or a
+# ruleset with code owner review on main to take effect; see docs/guides/trial-install.md.
+/setup/                            @charlesedwardsmith5609
+/.github/CODEOWNERS                @charlesedwardsmith5609
+/.github/                          @charlesedwardsmith5609
+/foundation/terraform/modules/     @charlesedwardsmith5609
+/foundation/oidc-trust/            @charlesedwardsmith5609
+/foundation/base-images/           @charlesedwardsmith5609
+/foundation/slo-framework/         @charlesedwardsmith5609
+/foundation/network-policy/        @charlesedwardsmith5609

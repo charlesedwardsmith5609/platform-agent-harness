@@ -129,6 +129,14 @@ them in the repository settings; no script in this repo sets or runs the checks 
    `setup/` covers `setup/project-taxonomy.json` and `setup/platform_harness/`. The five
    `foundation/` paths exist in a fleet repo only (`CLAUDE.md`, "Shared foundation").
 
+This repository's own `.github/CODEOWNERS` is committed (owner: the repository owner's handle).
+Turning on branch protection or the ruleset is still the owner's step; the file does nothing
+until code owner review is required on `main`.
+
+Order of preference: branch protection first (its `gh api` check is the simplest), with a
+ruleset as the equivalent. For the merge restriction use a ruleset "Restrict updates" where your
+plan has it, otherwise the fork workflow.
+
 **Verify by hand.** The coordinator runs these; do not add them to a script.
 
 ```bash
