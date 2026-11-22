@@ -107,7 +107,9 @@ them in the repository settings; no script in this repo sets or runs the checks 
    - (a) Restrict who can update `main` to the coordinator: a ruleset "Restrict updates" rule
      with only the coordinator on the bypass list, or, on organization repositories, branch
      protection "Restrict who can push to matching branches". The agent keeps Write so it can
-     push its `issue/<n>-<slug>` branches.
+     push its `issue/<n>-<slug>` branches. Write on a branch the agent controls can still run
+     push-triggered workflows, so keep Actions secrets and privileged runners out of reach of
+     agent-controlled branches, or use option (b) for agents that must not reach them.
    - (b) Fork workflow: the agent has Read or Triage on the main repository, pushes to its own
      fork and opens PRs from there, so it has no merge right at all.
 3. **CODEOWNERS** in `.github/CODEOWNERS`, owned by the coordinator, so changes to these paths
@@ -135,6 +137,9 @@ them in the repository settings; no script in this repo sets or runs the checks 
 gh api repos/{owner}/{repo}/branches/main/protection
 # Or, if you use rulesets (active rules only):
 gh api repos/{owner}/{repo}/rules/branches/main
+# The rules endpoint does not show bypass lists: also read each applicable ruleset's
+# bypass_actors (Settings > Rules, including inherited rulesets) and confirm the agent
+# is not on one
 # Agent role: role_name must not be maintain or admin; with option (a) write is fine,
 # with option (b) it should be read or triage
 gh api repos/{owner}/{repo}/collaborators/{agent-login}/permission
